@@ -59,6 +59,8 @@ import androidx.compose.ui.zIndex
 import com.customlauncher.core.model.Node
 import com.customlauncher.core.model.NodeLayer
 import com.customlauncher.core.model.Wallpaper
+import com.customlauncher.container
+import com.customlauncher.ui.anim.NodeAnimator
 import com.customlauncher.ui.home.WidgetFrame
 import com.customlauncher.widget.WidgetConfig
 import com.customlauncher.widget.WidgetHost
@@ -136,7 +138,11 @@ fun NodeView(
                 .size(node.width.dp, node.height.dp)
                 .then(modifier)
                 .then(if (usesBlend(node)) Modifier.canvasTransform(node) else Modifier.nodeTransform(node))
-        ) { WidgetFrame(node, wallpaper, host, Modifier.fillMaxSize()) }
+        ) {
+            NodeAnimator(node.animation, host.isActive, Modifier.fillMaxSize(), particleSource = stickerFile(node)) {
+                WidgetFrame(node, wallpaper, host, Modifier.fillMaxSize())
+            }
+        }
         return
     }
 
@@ -286,6 +292,13 @@ fun NodeView(
     if (selected) {
         NodeToolbar(draft, env)
     }
+}
+
+@Composable
+private fun stickerFile(n: Node): java.io.File? {
+    if (n.type != StickerWidget.id) return null
+    val repo = androidx.compose.ui.platform.LocalContext.current.container.stickerRepository
+    return remember(n.config) { repo.fileOf(WidgetConfig(n.config).string(StickerWidget.FILE)) }
 }
 
 private fun usesBlend(n: Node): Boolean =

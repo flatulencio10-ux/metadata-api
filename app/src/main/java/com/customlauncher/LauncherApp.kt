@@ -20,6 +20,12 @@ class LauncherApp : Application(), ImageLoaderFactory {
         super.onCreate()
         container = AppContainer(this)
         container.autoSwitcher.start()
+        // Entrance animations can play on unlock.
+        registerReceiver(object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, i: android.content.Intent?) {
+                container.animationSignals.emit(com.customlauncher.core.model.EntranceTrigger.UNLOCK)
+            }
+        }, android.content.IntentFilter(android.content.Intent.ACTION_USER_PRESENT))
 
         // Keep the football refresh job scheduled if any football widget is placed.
         container.appScope.launch {

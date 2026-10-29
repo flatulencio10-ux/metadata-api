@@ -59,7 +59,8 @@ fun LauncherRoot(vm: LauncherViewModel) {
     val catalog = remember(apps) { AppCatalog(apps) }
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
     val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
-    val bus = LocalContext.current.container.bus
+    val context = LocalContext.current
+    val bus = context.container.bus
     val snackbar = remember { SnackbarHostState() }
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
 
@@ -84,6 +85,10 @@ fun LauncherRoot(vm: LauncherViewModel) {
                 is UiCommand.Message -> snackbar.showSnackbar(cmd.text)
             }
         }
+    }
+    // Entrance animations set to "launcher opened" play whenever the home screen resumes.
+    LaunchedEffect(resumed) {
+        if (resumed) context.container.animationSignals.emit(com.customlauncher.core.model.EntranceTrigger.LAUNCHER_OPENED)
     }
     LaunchedEffect(vm.homePressTick) {
         if (vm.homePressTick > 0) pagerState.animateScrollToPage(activity.defaultPage.coerceIn(0, activity.pages.lastIndex))

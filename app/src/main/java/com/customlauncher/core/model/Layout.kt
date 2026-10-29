@@ -63,6 +63,8 @@ data class WidgetInstance(
     val layer: NodeLayer = NodeLayer.NORMAL,
     /** Nodes sharing a group id move together in Edit Mode. */
     val groupId: String? = null,
+    /** Entrance / idle / tap animations and parallax (null = none). */
+    val animation: NodeAnimations? = null,
 )
 
 /** Kept for readability in new code: every placed element is a node. */
@@ -202,6 +204,17 @@ data class SearchConfig(
     val unitConversion: Boolean = true,
 )
 
+/** Battery / performance safeguards for animations and physics. */
+@Serializable
+data class PerformanceConfig(
+    /** Keep idle animations and physics running in battery saver / below 15% battery. */
+    val ignoreBatterySaver: Boolean = false,
+    /** Maximum simultaneously simulated dynamic physics bodies per page. */
+    val maxDynamicBodies: Int = 30,
+    /** Shows FPS, active objects and physics step time on the home screen. */
+    val showOverlay: Boolean = false,
+)
+
 /**
  * The whole launcher setup in one serializable object. This is what is persisted, exported
  * and imported (like a KDE global theme + layout). Secrets such as API keys are deliberately
@@ -221,6 +234,7 @@ data class LayoutProfile(
     val search: SearchConfig = SearchConfig(),
     val appOverrides: Map<String, AppOverride> = emptyMap(),
     val folders: List<AppFolder> = emptyList(),
+    val performance: PerformanceConfig = PerformanceConfig(),
 ) {
     val currentActivity: ActivityProfile
         get() = activities.firstOrNull { it.id == currentActivityId } ?: activities.first()

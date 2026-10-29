@@ -15,6 +15,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -34,6 +35,7 @@ import com.customlauncher.core.model.LayoutProfile
 import com.customlauncher.gestures.GestureCallbacks
 import com.customlauncher.gestures.launcherGestures
 import com.customlauncher.ui.LauncherViewModel
+import com.customlauncher.ui.anim.LocalPageOffset
 import kotlin.math.abs
 
 /**
@@ -118,6 +120,9 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
                                 (pagerState.currentPage - index) + pagerState.currentPageOffsetFraction
                             }
                     ) {
+                        CompositionLocalProvider(
+                            LocalPageOffset provides { (pagerState.currentPage - index) + pagerState.currentPageOffsetFraction }
+                        ) {
                         PageView(
                             page = page,
                             activityWallpaper = activity.wallpaper,
@@ -126,6 +131,7 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
                             grid = profile.grid,
                             vm = vm,
                         )
+                        }
                     }
                 }
 

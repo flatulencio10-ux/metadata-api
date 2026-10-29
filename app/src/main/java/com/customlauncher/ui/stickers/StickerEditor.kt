@@ -180,6 +180,8 @@ fun StickerEditor(node: Node, vm: LauncherViewModel) {
     var error by remember { mutableStateOf<String?>(null) }
     var fx by remember { mutableStateOf(StickerWidget.effects(config)) }
     var opacity by remember { mutableFloatStateOf(node.style.opacity) }
+    var animations by remember { mutableStateOf(node.animation ?: com.customlauncher.core.model.NodeAnimations()) }
+    var previewKey by remember { mutableIntStateOf(0) }
 
     val close = { vm.stickerEditorTarget = null }
     BackHandler(onBack = close)
@@ -189,7 +191,7 @@ fun StickerEditor(node: Node, vm: LauncherViewModel) {
         busy = "Saving…"
         scope.launch {
             val png = if (s != null && s.changed) withContext(Dispatchers.Default) { ImageOps.toPng(ImageOps.trimTransparent(s.working)) } else null
-            vm.saveStickerEdit(node.id, png, fx, opacity)
+            vm.saveStickerEdit(node.id, png, fx, opacity, animations)
             busy = null
             close()
         }
@@ -218,7 +220,21 @@ fun StickerEditor(node: Node, vm: LauncherViewModel) {
         // ---- Canvas ---------------------------------------------------------------
         Box(Modifier.weight(1f).fillMaxWidth().padding(12.dp).clip(RoundedCornerShape(20.dp))) {
             val s = session
-            if (s != null) {
+            if (tab == EditorTab.ANIMATE) {
+                // Live preview with the animations applied; Preview replays entrance + tap.
+                Box(Modifier.fillMaxSize().checkerboard(), contentAlignment = Alignment.Center) {
+                    com.customlauncher.ui.anim.NodeAnimator(
+                        animations, active = true, modifier = Modifier.size(220.dp), replayKey = previewKey, particleSource = file,
+                    ) {
+                        val ctrl = com.customlauncher.ui.anim.LocalNodeAnim.current
+                        LaunchedEffect(previewKey) { if (previewKey > 0) ctrl?.onTap?.invoke() }
+                        StickerWidget.StickerImage(
+                            file, kind, androidx.compose.ui.unit.DpSize(220.dp, 220.dp), playing = true,
+                            modifier = Modifier.fillMaxSize(), effects = fx,
+                        )
+                    }
+                }
+            } else if (s != null) {
                 EditCanvas(s, brush, brushDp, showBefore, fx)
             } else {
                 Box(Modifier.fillMaxSize().checkerboard(), contentAlignment = Alignment.Center) {
@@ -307,7 +323,11 @@ fun StickerEditor(node: Node, vm: LauncherViewModel) {
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     }
                     EditorTab.EFFECTS -> EffectsOptions(fx, opacity, kind, onFx = { fx = it }, onOpacity = { opacity = it })
-                    EditorTab.ANIMATE -> Hint("Entrance, idle and tap animations are set here.")
+                    EditorTab.ANIMATE -> AnimationEditor(
+                        animations, vm.profile.value ?: return@AnimatedContent,
+                        onPreview = { previewKey++ },
+                        onChange = { animations = it },
+                    )
                 }
             }
         }

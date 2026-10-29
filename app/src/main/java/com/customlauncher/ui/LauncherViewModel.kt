@@ -325,7 +325,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
      * Saves the sticker editor's result: new pixels (if edited) become a new library asset
      * and the node keeps its height while adopting the new aspect ratio.
      */
-    fun saveStickerEdit(nodeId: String, png: ByteArray?, fx: StickerEffects, opacity: Float) = viewModelScope.launch {
+    fun saveStickerEdit(nodeId: String, png: ByteArray?, fx: StickerEffects, opacity: Float, animations: com.customlauncher.core.model.NodeAnimations) = viewModelScope.launch {
         val asset = png?.let { runCatching { c.stickerRepository.saveEdited(it, null) }.getOrNull() }
         updateWidget(nodeId) { n ->
             var config = WidgetConfig(n.config)
@@ -335,7 +335,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 if (asset.height > 0) width = n.height * asset.width / asset.height
             }
             config = StickerWidget.withEffects(config, fx)
-            n.copy(config = config.json, width = width, style = n.style.copy(opacity = opacity))
+            n.copy(config = config.json, width = width, style = n.style.copy(opacity = opacity), animation = animations.takeIf { !it.isEmpty })
         }
     }
 

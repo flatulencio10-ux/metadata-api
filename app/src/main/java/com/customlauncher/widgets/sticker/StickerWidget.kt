@@ -29,6 +29,8 @@ import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import coil.decode.ImageDecoderDecoder
 import coil.request.ImageRequest
+import coil.request.repeatCount
+import com.customlauncher.ui.anim.LocalNodeAnim
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
@@ -101,11 +103,21 @@ object StickerWidget : LauncherWidget {
         val mask by produceState<AlphaMask?>(null, file.path) {
             value = if (kind == StickerKind.BITMAP || kind == StickerKind.ANIMATED) withContext(Dispatchers.IO) { AlphaMask.load(file) } else null
         }
-        val action = remember(config) { tapAction(config) }
-        val tappable = !host.isEditing
+        val legacyAction = remember(config) { tapAction(config) }
+        val anim = LocalNodeAnim.current
+        // Only opaque pixels with something to do take the tap; otherwise it passes through.
+        val tappable = !host.isEditing && (anim?.tapEnabled == true || legacyAction != Action.None)
+        val gifOnce = anim?.playGifOnce == true
+        val playing = host.isActive && (!gifOnce || (anim?.tapCount ?: 0) > 0)
 
-        Box(Modifier.fillMaxSize().alphaTappable(mask, tappable) { if (action != Action.None) host.runAction(action) }) {
-            StickerImage(file, kind, size, playing = host.isActive, modifier = Modifier.fillMaxSize(), effects = effects(config))
+        Box(Modifier.fillMaxSize().alphaTappable(mask, tappable) {
+            anim?.onTap?.invoke()
+            if (legacyAction != Action.None) host.runAction(legacyAction)
+        }) {
+            StickerImage(
+                file, kind, size, playing = playing, modifier = Modifier.fillMaxSize(), effects = effects(config),
+                playOnceKey = if (gifOnce) anim?.tapCount ?: 0 else -1,
+            )
         }
     }
 
@@ -119,6 +131,8 @@ object StickerWidget : LauncherWidget {
         modifier: Modifier = Modifier,
         iterations: Int = LottieConstants.IterateForever,
         effects: StickerEffects = StickerEffects(),
+        /** >= 0: play an animated image once (restarted whenever the key changes). */
+        playOnceKey: Int = -1,
     ) {
         val context = LocalContext.current
         val density = LocalDensity.current
@@ -154,7 +168,7 @@ object StickerWidget : LauncherWidget {
             }
             else -> {
                 val px = with(density) { maxOf(size.width.roundToPx(), size.height.roundToPx(), 1) }
-                val request = remember(file.path, kind, px, playing) {
+                val request = remember(file.path, kind, px, playing, playOnceKey) {
                     ImageRequest.Builder(context)
                         .data(file)
                         .size(px)
@@ -162,7 +176,10 @@ object StickerWidget : LauncherWidget {
                             when (kind) {
                                 StickerKind.SVG -> decoderFactory(SvgDecoder.Factory())
                                 // Off screen, decode the first frame only so nothing animates.
-                                StickerKind.ANIMATED -> if (playing) decoderFactory(ImageDecoderDecoder.Factory())
+                                StickerKind.ANIMATED -> if (playing) {
+                                    decoderFactory(ImageDecoderDecoder.Factory())
+                                    if (playOnceKey >= 0) repeatCount(0)
+                                }
                                 else -> Unit
                             }
                         }

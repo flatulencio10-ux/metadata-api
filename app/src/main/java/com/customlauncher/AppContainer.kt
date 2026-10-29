@@ -13,6 +13,9 @@ import com.customlauncher.data.profile.ProfileRepository
 import com.customlauncher.data.settings.LauncherPrefs
 import com.customlauncher.data.settings.SecureStore
 import com.customlauncher.data.stickers.StickerRepository
+import com.customlauncher.runtime.AnimationSignals
+import com.customlauncher.runtime.PowerGovernor
+import com.customlauncher.runtime.TiltSensor
 import com.customlauncher.data.system.CalendarRepository
 import com.customlauncher.data.system.ContactsRepository
 import com.customlauncher.data.system.MediaRepository
@@ -47,6 +50,9 @@ class AppContainer(context: Context) {
     val contactsRepository by lazy { ContactsRepository(app) }
     val mediaRepository by lazy { MediaRepository(app) }
     val stickerRepository by lazy { StickerRepository(app, appScope) }
+    val powerGovernor by lazy { PowerGovernor(app, profileRepository, appScope) }
+    val tiltSensor by lazy { TiltSensor(app, appScope) }
+    val animationSignals = AnimationSignals()
     val autoSwitcher by lazy { ActivityAutoSwitcher(app, profileRepository, systemStats, appScope) }
     val actionExecutor by lazy {
         ActionExecutor(app, appScope, bus, appRepository, shortcutRepository, profileRepository)
