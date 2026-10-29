@@ -63,6 +63,7 @@ import com.customlauncher.container
 import com.customlauncher.physics.BodyState
 import com.customlauncher.physics.LocalPhysics
 import com.customlauncher.ui.anim.NodeAnimator
+import com.customlauncher.ui.anim.clipPose
 import com.customlauncher.objects.LocalRuntimes
 import com.customlauncher.ui.objects.RuntimeDecorations
 import com.customlauncher.ui.objects.TrailBuffer
@@ -102,6 +103,8 @@ class NodeEditEnv(
     /** Zoom of an infinite canvas page (1 = normal page). */
     val canvasScale: Float = 1f,
     val pinned: Boolean = false,
+    /** Timeline scrub / recording preview for this node (read per frame). */
+    val scrub: () -> com.customlauncher.ui.anim.ActivePose? = { null },
 )
 
 /**
@@ -158,7 +161,8 @@ fun NodeView(
             usesBlend(node) -> Modifier.canvasTransform(node)
             else -> Modifier.nodeTransform(node)
         }
-        val rt = if (node.logic != null || node.speedVisuals?.sparksOnCollision == true) LocalRuntimes.current?.get(node.id) else null
+        val rt = if (node.logic != null || node.clips.isNotEmpty() || node.speedVisuals?.sparksOnCollision == true) LocalRuntimes.current?.get(node.id) else null
+        val clipPose = com.customlauncher.ui.anim.rememberClipPlayback(node, rt)
         val visuals = node.speedVisuals
         val frames = if (visuals?.frames != null) rememberSpriteSheet(visuals.frames) else null
         val trail = remember(node.id) { TrailBuffer() }
@@ -170,6 +174,7 @@ fun NodeView(
                 .size(node.width.dp, node.height.dp)
                 .then(modifier)
                 .then(transform)
+                .then(if (node.clips.isNotEmpty()) Modifier.clipPose { clipPose.value } else Modifier)
                 .then(if (body != null && visuals != null) Modifier.speedFx(body, visuals, frames, trail) else Modifier)
         ) {
             NodeAnimator(
@@ -228,6 +233,7 @@ fun NodeView(
             .offset(draft.x.dp, draft.y.dp)
             .size(draft.width.dp, draft.height.dp)
             .nodeTransform(draft)
+            .clipPose(env.scrub)
             .graphicsLayer { this.alpha = alpha }
             .onGloballyPositioned { coords = it }
     ) {

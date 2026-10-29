@@ -139,6 +139,11 @@ fun EditOverlay(profile: LayoutProfile, vm: LauncherViewModel, pagerState: Pager
         }
     }
 
+    vm.clipRecording?.let { (id, clip) ->
+        profile.findWidget(id)?.let { node ->
+            com.customlauncher.ui.anim.ClipRecorderOverlay(vm, node, clip) { clips -> vm.updateWidget(id) { it.copy(clips = clips) } }
+        }
+    }
     if (vm.addWidgetSheetOpen) AddWidgetSheet(vm)
     if (vm.pageSettingsOpen) PageSettingsDialog(profile, vm)
     if (vm.layersPanelOpen) LayersPanel(profile, vm)

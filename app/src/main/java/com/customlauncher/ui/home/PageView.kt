@@ -215,6 +215,7 @@ fun NodeList(
                 onToolbar = vm::onNodeToolbar,
                 pinned = pinned,
                 canvasScale = canvasScale,
+                scrub = { vm.clipScrub?.takeIf { it.first == instance.id }?.second },
             )
             NodeView(
                 node = instance,

@@ -313,6 +313,12 @@ private fun PolygonEditor(points: List<PathPoint>, onChange: (List<PathPoint>) -
 
 @Composable
 private fun AnimationTab(n: Node, profile: LayoutProfile, vm: LauncherViewModel, set: (Node) -> Unit) {
+    var timeline by rememberSaveable { mutableStateOf(n.clips.isNotEmpty()) }
+    DarkChips(listOf(false, true), timeline, { if (it) "Keyframe timeline" else "Effects" }) { timeline = it }
+    if (timeline) {
+        com.customlauncher.ui.anim.ClipTimeline(n, vm) { clips -> vm.updateWidget(n.id) { it.copy(clips = clips) } }
+        return
+    }
     AnimationEditor(
         anim = n.animation ?: NodeAnimations(), profile = profile, onPreview = null,
         onChange = { a -> set(n.copy(animation = a.takeIf { !it.isEmpty })) },

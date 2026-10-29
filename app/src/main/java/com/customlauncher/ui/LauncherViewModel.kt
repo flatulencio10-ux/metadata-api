@@ -82,6 +82,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** Live node preview while an inspector slider is dragged (committed on release). */
     var nodePreview by mutableStateOf<Node?>(null)
 
+    /** Keyframe timeline preview: node id → pose shown on the canvas while scrubbing / recording. */
+    var clipScrub by mutableStateOf<Pair<String, com.customlauncher.ui.anim.ActivePose>?>(null)
+
+    /** Node id + clip name being recorded by dragging on the page. */
+    var clipRecording by mutableStateOf<Pair<String, String>?>(null)
+
     /** Panel that the "+ add to panel" hint (Edit Mode) is adding apps to. */
     var panelAddTargetId by mutableStateOf<String?>(null)
 
@@ -143,6 +149,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun exitEditMode() {
         editMode = false
         selectedWidgetId = null
+        clipScrub = null
+        clipRecording = null
     }
 
     fun completeOnboarding() = viewModelScope.launch { c.prefs.setOnboardingDone(true) }
