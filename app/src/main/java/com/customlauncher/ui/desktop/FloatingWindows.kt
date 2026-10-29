@@ -43,6 +43,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
@@ -95,7 +97,9 @@ private fun WindowFrame(w: FloatingWindow, wallpaper: Wallpaper, area: DpSize, a
             .background(Color(0xF0181A20))
             .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
             .pointerInput(Unit) { detectTapGestures(onPress = { onFocus() }) }
+            .onGloballyPositioned { vm.chromeBounds["window:${w.id}"] = it.boundsInRoot() }
     ) {
+        androidx.compose.runtime.DisposableEffect(w.id) { onDispose { vm.chromeBounds.remove("window:${w.id}") } }
         Row(
             Modifier
                 .fillMaxWidth()

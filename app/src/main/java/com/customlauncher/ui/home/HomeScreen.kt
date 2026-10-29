@@ -192,6 +192,7 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
                         onUpdateConfig = { id, config -> vm.updateWidgetConfig(id, config) },
                         editMode = vm.editMode,
                         onAddToPanel = { vm.panelAddTargetId = panel.id },
+                        onBounds = { r -> if (r == null) vm.chromeBounds.remove("panel:${panel.id}") else vm.chromeBounds["panel:${panel.id}"] = r },
                     )
                     if (!panel.autoHide) offset += panel.footprint()
                 }

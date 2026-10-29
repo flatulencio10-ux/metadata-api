@@ -40,6 +40,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.customlauncher.actions.ActionCatalog
@@ -78,9 +80,13 @@ fun PanelView(
     modifier: Modifier = Modifier,
     editMode: Boolean = false,
     onAddToPanel: () -> Unit = {},
+    /** Reports the panel's on-screen bounds (null when it goes away). */
+    onBounds: (androidx.compose.ui.geometry.Rect?) -> Unit = {},
 ) {
+    androidx.compose.runtime.DisposableEffect(panel.id) { onDispose { onBounds(null) } }
     var revealed by remember { mutableStateOf(!panel.autoHide) }
     var interactionTick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(revealed) { if (!revealed) onBounds(null) }
     LaunchedEffect(panel.autoHide, interactionTick, revealed) {
         if (panel.autoHide && revealed) {
             delay(4_000)
@@ -123,6 +129,7 @@ fun PanelView(
             Box(
                 size
                     .padding(margin)
+                    .onGloballyPositioned { onBounds(it.boundsInRoot()) }
                     .graphicsLayer { alpha = panel.opacity.coerceIn(0.05f, 1f) }
                     .clip(shape)
                     .background(panel.backgroundColor.toColor())

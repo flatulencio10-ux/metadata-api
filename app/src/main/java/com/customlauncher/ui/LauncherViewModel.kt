@@ -503,9 +503,18 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** When true the add-widget sheet opens the widget in a floating window. */
     var addWidgetAsWindow by mutableStateOf(false)
 
+    /** Root bounds of panels ("panel:id") and windows ("window:id"), so long-presses on them aren't "empty space". */
+    val chromeBounds = androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>()
+
     /** Long-press on the home screen: on an object → Edit Mode with it selected; elsewhere → context menu. */
     fun onHomeLongPress(rootPosition: androidx.compose.ui.geometry.Offset) {
-        if (editMode) return
+        if (editMode || startMenuOpen || contextMenuAt != null) return
+        val hit = chromeBounds.entries.firstOrNull { it.value.contains(rootPosition) }?.key
+        if (hit != null) {
+            // Windows handle their own presses; panels keep the classic "hold to edit".
+            if (hit.startsWith("panel:")) enterEditMode(rootPosition)
+            return
+        }
         val pageWidgets = profile.value?.currentActivity?.pages?.getOrNull(currentPage)?.widgets.orEmpty()
         if (pageWidgets.any { widgetBounds[it.id]?.contains(rootPosition) == true }) enterEditMode(rootPosition)
         else contextMenuAt = rootPosition
