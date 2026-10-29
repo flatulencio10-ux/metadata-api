@@ -65,6 +65,8 @@ data class WidgetInstance(
     val groupId: String? = null,
     /** Entrance / idle / tap animations and parallax (null = none). */
     val animation: NodeAnimations? = null,
+    /** Physics body (null = not simulated). */
+    val physics: PhysicsSpec? = null,
 )
 
 /** Kept for readability in new code: every placed element is a node. */
@@ -106,6 +108,8 @@ data class Page(
     /** Optional per-page grid overlay; null = use the global grid settings. */
     val grid: GridConfig? = null,
     val name: String = "",
+    /** Physics world settings for this page. */
+    val world: WorldConfig = WorldConfig(),
 )
 
 @Serializable

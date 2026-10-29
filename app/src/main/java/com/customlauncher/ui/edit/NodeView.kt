@@ -60,6 +60,8 @@ import com.customlauncher.core.model.Node
 import com.customlauncher.core.model.NodeLayer
 import com.customlauncher.core.model.Wallpaper
 import com.customlauncher.container
+import com.customlauncher.physics.BodyState
+import com.customlauncher.physics.LocalPhysics
 import com.customlauncher.ui.anim.NodeAnimator
 import com.customlauncher.ui.home.WidgetFrame
 import com.customlauncher.widget.WidgetConfig
@@ -106,6 +108,15 @@ fun Modifier.canvasTransform(n: Node): Modifier = drawWithContent {
     }) { this@drawWithContent.drawContent() }
 }
 
+/** Pose from the physics simulation (read per frame in the layer, so no recomposition). */
+fun Modifier.physicsTransform(n: Node, body: BodyState): Modifier = graphicsLayer {
+    translationX = (body.x - n.x).dp.toPx()
+    translationY = (body.y - n.y).dp.toPx()
+    rotationZ = body.rotation
+    scaleX = n.scale * if (n.flipX) -1f else 1f
+    scaleY = n.scale * if (n.flipY) -1f else 1f
+}
+
 /** Applies a node's rotation, scale, flip and pivot. */
 fun Modifier.nodeTransform(n: Node): Modifier = graphicsLayer {
     rotationZ = n.rotation
@@ -132,12 +143,18 @@ fun NodeView(
 ) {
     if (!editMode || env == null) {
         if (node.hidden) return
+        val body = LocalPhysics.current?.states?.get(node.id)
+        val transform = when {
+            body != null -> Modifier.physicsTransform(node, body)
+            usesBlend(node) -> Modifier.canvasTransform(node)
+            else -> Modifier.nodeTransform(node)
+        }
         Box(
             Modifier
                 .offset(node.x.dp, node.y.dp)
                 .size(node.width.dp, node.height.dp)
                 .then(modifier)
-                .then(if (usesBlend(node)) Modifier.canvasTransform(node) else Modifier.nodeTransform(node))
+                .then(transform)
         ) {
             NodeAnimator(node.animation, host.isActive, Modifier.fillMaxSize(), particleSource = stickerFile(node)) {
                 WidgetFrame(node, wallpaper, host, Modifier.fillMaxSize())

@@ -33,6 +33,10 @@ import com.customlauncher.core.model.Node
 import com.customlauncher.core.model.NodeLayer
 import com.customlauncher.core.model.Page
 import com.customlauncher.core.model.Wallpaper
+import androidx.compose.runtime.CompositionLocalProvider
+import com.customlauncher.physics.LocalPhysics
+import com.customlauncher.physics.physicsTouch
+import com.customlauncher.physics.rememberPhysicsWorld
 import com.customlauncher.ui.LauncherViewModel
 import com.customlauncher.ui.edit.Guide
 import com.customlauncher.ui.edit.NodeBounds
@@ -73,7 +77,18 @@ fun PageView(
         }
         return
     }
-    Box(Modifier.fillMaxSize()) {
+    // Physics runs outside Edit Mode only; nodes read their live pose from LocalPhysics.
+    val physics = if (editMode) null else rememberPhysicsWorld(
+        nodes = page.widgets,
+        world = page.world,
+        pageSize = vm.pageSizeDp,
+        active = isActive,
+        maxDynamic = vm.profile.value?.performance?.maxDynamicBodies ?: 30,
+        events = vm.objectEvents,
+        onSettled = { vm.commitPhysicsPoses(it) },
+    )
+    CompositionLocalProvider(LocalPhysics provides physics) {
+    Box(Modifier.fillMaxSize().physicsTouch(physics, vm.objectEvents)) {
         if (editMode && effectiveGrid.showGrid && effectiveGrid.snapEnabled) GridDots(effectiveGrid.snapDp)
         NodeList(
             nodes = page.widgets.filter { it.layer == NodeLayer.NORMAL },
@@ -85,6 +100,7 @@ fun PageView(
             vm = vm,
             pinned = false,
         )
+    }
     }
 }
 
@@ -161,7 +177,7 @@ fun NodeList(
     nodes.sortedBy { it.z }.forEach { stored ->
         key(stored.id) {
             // Inspector sliders preview style changes before committing them.
-            val instance = vm.stylePreview?.takeIf { it.first == stored.id }?.let { stored.copy(style = it.second) } ?: stored
+            val instance = vm.nodePreview?.takeIf { it.id == stored.id } ?: stored
             val host = remember(instance.id, isActive, editMode) {
                 WidgetHost(
                     instanceId = instance.id,

@@ -79,8 +79,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var pageSettingsOpen by mutableStateOf(false)
     var currentPage by mutableStateOf(0)
 
-    /** Live style preview while an inspector slider is dragged (committed on release). */
-    var stylePreview by mutableStateOf<Pair<String, WidgetStyle>?>(null)
+    /** Live node preview while an inspector slider is dragged (committed on release). */
+    var nodePreview by mutableStateOf<Node?>(null)
 
     /** Panel that the "+ add to panel" hint (Edit Mode) is adding apps to. */
     var panelAddTargetId by mutableStateOf<String?>(null)
@@ -134,10 +134,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun commitStylePreview() {
-        val (id, style) = stylePreview ?: return
-        updateWidget(id) { it.copy(style = style) }
-        stylePreview = null
+    fun commitNodePreview() {
+        val n = nodePreview ?: return
+        updateWidget(n.id) { n }
+        nodePreview = null
     }
 
     fun exitEditMode() {
@@ -292,6 +292,32 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 pinned = act.pinned + node,
                 pages = act.pages.map { p -> p.copy(widgets = p.widgets.filterNot { it.id == id }) },
             )
+        }
+    }
+
+    // ---- Interactive objects ---------------------------------------------------------
+
+    /** Receives object gestures and physics events (behaviours hook in here). */
+    val objectEvents = com.customlauncher.objects.ObjectEventSink { event -> onObjectEvent(event) }
+
+    private fun onObjectEvent(event: com.customlauncher.objects.ObjectEvent) {
+        objectEventListener?.invoke(event)
+    }
+
+    /** Set by the behaviour engine of the visible page. */
+    var objectEventListener: ((com.customlauncher.objects.ObjectEvent) -> Unit)? = null
+
+    /** Writes resting physics poses back into the layout (only nodes that actually moved). */
+    fun commitPhysicsPoses(poses: Map<String, Triple<Float, Float, Float>>) {
+        val p = profile.value ?: return
+        val moved = poses.filter { (id, pose) ->
+            val n = p.findWidget(id) ?: return@filter false
+            kotlin.math.abs(n.x - pose.first) > 0.5f || kotlin.math.abs(n.y - pose.second) > 0.5f ||
+                kotlin.math.abs(n.rotation - pose.third) > 0.5f
+        }
+        if (moved.isEmpty()) return
+        editNodeLists { list ->
+            list.map { n -> moved[n.id]?.let { (x, y, r) -> n.copy(x = x, y = y, rotation = r) } ?: n }
         }
     }
 

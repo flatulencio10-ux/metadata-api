@@ -38,6 +38,12 @@ class AlphaMask(private val width: Int, private val height: Int, private val alp
         return (alpha[y * width + x].toInt() and 0xFF) > threshold
     }
 
+    /** Convex outline of the opaque pixels as node fractions (for physics colliders). */
+    fun convexHull(): List<com.customlauncher.core.model.PathPoint>? {
+        val opaque = BooleanArray(alpha.size) { (alpha[it].toInt() and 0xFF) > 40 }
+        return com.customlauncher.physics.ColliderMath.hullFromMask(opaque, width, height)
+    }
+
     companion object {
         private val cache = LruCache<String, AlphaMask>(64)
 

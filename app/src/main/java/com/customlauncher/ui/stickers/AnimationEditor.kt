@@ -52,12 +52,12 @@ private val Accent = Color(0xFF7C5CFF)
 
 /** Entrance / idle loop / on-tap animation slots plus parallax, for any node. */
 @Composable
-fun AnimationEditor(anim: NodeAnimations, profile: LayoutProfile, onPreview: () -> Unit, onChange: (NodeAnimations) -> Unit) {
+fun AnimationEditor(anim: NodeAnimations, profile: LayoutProfile, onPreview: (() -> Unit)?, onChange: (NodeAnimations) -> Unit) {
     var pickingAction by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Animations", color = Color.White, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-            ToolPill(Icons.Filled.TouchApp, "Preview", selected = false, highlight = true, onClick = onPreview)
+            if (onPreview != null) ToolPill(Icons.Filled.TouchApp, "Preview", selected = false, highlight = true, onClick = onPreview)
         }
 
         Section("Entrance")

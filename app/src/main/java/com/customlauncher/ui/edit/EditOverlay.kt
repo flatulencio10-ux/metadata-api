@@ -124,19 +124,17 @@ fun EditOverlay(profile: LayoutProfile, vm: LauncherViewModel, pagerState: Pager
         }
 
         val selected = vm.selectedWidgetId?.let { profile.findWidget(it) }
-        if (selected != null) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(8.dp)
-                    .fillMaxWidth()
-                    .heightIn(max = 340.dp),
-                shape = RoundedCornerShape(24.dp),
-                tonalElevation = 6.dp,
-                shadowElevation = 6.dp,
-            ) {
-                WidgetInspector(selected.id, selected.type, vm.stylePreview?.takeIf { it.first == selected.id }?.second ?: selected.style, vm)
+        androidx.compose.animation.AnimatedVisibility(
+            visible = selected != null,
+            enter = androidx.compose.animation.slideInVertically(androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 500f)) { it },
+            exit = androidx.compose.animation.slideOutVertically { it },
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            selected?.let { node ->
+                com.customlauncher.ui.edit.inspector.NodeInspector(
+                    node, profile, vm,
+                    modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars),
+                )
             }
         }
     }
@@ -156,48 +154,6 @@ private fun ToolbarButton(icon: ImageVector, label: String, onClick: () -> Unit)
     ) {
         Icon(icon, null)
         Text(label, style = MaterialTheme.typography.labelSmall)
-    }
-}
-
-/** Style + layer + config controls for one widget. */
-@Composable
-private fun WidgetInspector(id: String, type: String, style: WidgetStyle, vm: LauncherViewModel) {
-    val def = WidgetRegistry.find(type)
-    fun preview(s: WidgetStyle) { vm.stylePreview = id to s }
-    val commit = { vm.commitStylePreview() }
-
-    Column(
-        Modifier
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(def?.name ?: type, style = MaterialTheme.typography.titleMedium)
-        Row(Modifier.horizontalScroll(rememberScrollState())) {
-            ToolbarButton(Icons.Filled.Tune, "Configure") { vm.configuringWidgetId = id }
-            ToolbarButton(Icons.Filled.FlipToFront, "Front") { vm.bringToFront(id) }
-            ToolbarButton(Icons.Filled.FlipToBack, "Back") { vm.sendToBack(id) }
-            ToolbarButton(Icons.AutoMirrored.Filled.ArrowBack, "Prev page") { vm.moveWidgetToPage(id, -1) }
-            ToolbarButton(Icons.AutoMirrored.Filled.ArrowForward, "Next page") { vm.moveWidgetToPage(id, +1) }
-            ToolbarButton(Icons.Filled.ContentCopy, "Duplicate") { vm.duplicateWidget(id) }
-            ToolbarButton(Icons.Filled.Delete, "Delete") { vm.deleteWidget(id) }
-        }
-        LabeledSlider("Opacity", style.opacity, 0.05f..1f, { preview(style.copy(opacity = it)) },
-            format = { "%.0f%%".format(it * 100) }, onChangeFinished = commit)
-        if (!style.useCardStyle) LabeledSlider("Corner radius", style.cornerRadiusDp, 0f..64f, { preview(style.copy(cornerRadiusDp = it)) },
-            format = { "${it.toInt()} dp" }, onChangeFinished = commit)
-        LabeledSlider("Padding", style.paddingDp, 0f..32f, { preview(style.copy(paddingDp = it)) },
-            format = { "${it.toInt()} dp" }, onChangeFinished = commit)
-        if (!style.useCardStyle) LabeledSlider("Background blur", style.blurDp, 0f..40f, { preview(style.copy(blurDp = it)) },
-            format = { "${it.toInt()} dp" }, onChangeFinished = commit)
-        com.customlauncher.ui.common.SwitchRow(
-            "Use global card style", style.useCardStyle,
-            { on -> vm.updateWidget(id) { w -> w.copy(style = w.style.copy(useCardStyle = on)) } },
-            supporting = "Theme → Card style. Turn off to customise this widget.",
-        )
-        if (!style.useCardStyle) {
-            ColorRow("Background tint", style.backgroundColor) { vm.updateWidget(id) { w -> w.copy(style = w.style.copy(backgroundColor = it)) } }
-        }
     }
 }
 
@@ -271,6 +227,22 @@ private fun PageSettingsDialog(profile: LayoutProfile, vm: LauncherViewModel) {
                 )
                 page.grid?.let { g ->
                     LabeledSlider("Grid step", g.snapDp, 4f..48f, { v -> vm.updatePage(index) { it.copy(grid = g.copy(snapDp = v)) } }, format = { "${it.toInt()} dp" })
+                }
+                Text("Physics world", style = MaterialTheme.typography.titleSmall)
+                val w = page.world
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    com.customlauncher.core.model.GravityDirection.entries.forEach { g ->
+                        FilterChip(w.gravity == g && !w.followTilt, { vm.updatePage(index) { it.copy(world = w.copy(gravity = g, followTilt = false)) } }, { Text(g.label) })
+                    }
+                }
+                LabeledSlider("Gravity strength", w.gravityStrength, 0f..30f, { v -> vm.updatePage(index) { it.copy(world = w.copy(gravityStrength = v)) } }, format = { "%.1f".format(it) })
+                com.customlauncher.ui.common.SwitchRow("Gravity follows device tilt", w.followTilt, { on -> vm.updatePage(index) { it.copy(world = w.copy(followTilt = on)) } })
+                com.customlauncher.ui.common.SwitchRow("Widgets and icons are solid", w.collideWithWidgets, { on -> vm.updatePage(index) { it.copy(world = w.copy(collideWithWidgets = on)) } })
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(w.wallLeft, { vm.updatePage(index) { it.copy(world = w.copy(wallLeft = !w.wallLeft)) } }, { Text("Left wall") })
+                    FilterChip(w.wallRight, { vm.updatePage(index) { it.copy(world = w.copy(wallRight = !w.wallRight)) } }, { Text("Right wall") })
+                    FilterChip(w.wallTop, { vm.updatePage(index) { it.copy(world = w.copy(wallTop = !w.wallTop)) } }, { Text("Top wall") })
+                    FilterChip(w.wallBottom, { vm.updatePage(index) { it.copy(world = w.copy(wallBottom = !w.wallBottom)) } }, { Text("Floor") })
                 }
                 Text("Transition", style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
