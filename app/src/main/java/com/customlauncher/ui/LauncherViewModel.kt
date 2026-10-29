@@ -307,6 +307,24 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** Set by the behaviour engine of the visible page. */
     var objectEventListener: ((com.customlauncher.objects.ObjectEvent) -> Unit)? = null
 
+    /** Extensions (scripting) attached to each page's behaviour session. */
+    val sessionExtensions = mutableListOf<com.customlauncher.objects.SessionExtension>()
+
+    /** True when a node has a script (set up by the scripting phase). */
+    fun isScripted(n: Node): Boolean = false
+
+    fun pinnedNodes(): List<Node> = profile.value?.currentActivity?.pinned.orEmpty()
+
+    /** A follow-finger drag ended: keep the object where it was dropped. */
+    fun commitRuntimeOffset(id: String) {
+        val rt = c.runtimes.peek(id) ?: return
+        val dx = rt.dx
+        val dy = rt.dy
+        if (dx == 0f && dy == 0f) return
+        rt.dx = 0f; rt.dy = 0f
+        updateWidget(id) { it.copy(x = it.x + dx, y = it.y + dy) }
+    }
+
     /** Writes resting physics poses back into the layout (only nodes that actually moved). */
     fun commitPhysicsPoses(poses: Map<String, Triple<Float, Float, Float>>) {
         val p = profile.value ?: return

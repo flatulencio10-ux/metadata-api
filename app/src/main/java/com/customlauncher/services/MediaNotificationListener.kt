@@ -16,6 +16,12 @@ class MediaNotificationListener : NotificationListenerService() {
         container.mediaRepository.onListenerConnected()
     }
 
+    /** Feeds "notification received" behaviour triggers (only the package name is used). */
+    override fun onNotificationPosted(sbn: android.service.notification.StatusBarNotification?) {
+        val pkg = sbn?.packageName ?: return
+        if (pkg != packageName) container.triggerSources.notificationPosted(pkg)
+    }
+
     companion object {
         fun component(context: Context) = ComponentName(context, MediaNotificationListener::class.java)
 

@@ -143,7 +143,7 @@ private fun TimingEditor(t: AnimTiming, allowInfinite: Boolean, onChange: (AnimT
 
 /** Draw a loop with a finger; the node drifts along it (dp relative to its rest position). */
 @Composable
-private fun DriftPathRecorder(path: List<PathPoint>, onPath: (List<PathPoint>) -> Unit) {
+internal fun DriftPathRecorder(path: List<PathPoint>, onPath: (List<PathPoint>) -> Unit) {
     val drawing = remember { mutableStateListOf<Offset>() }
     Text("Draw the drift path", color = Color.White, style = MaterialTheme.typography.bodySmall)
     Canvas(

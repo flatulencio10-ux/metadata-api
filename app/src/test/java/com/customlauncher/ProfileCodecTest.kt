@@ -35,6 +35,29 @@ class ProfileCodecTest {
         assertEquals(sample, ProfileCodec.decode(json))
     }
 
+    @Test fun roundTripsObjectsWithBehaviours() {
+        val node = WidgetInstance(
+            type = "sticker",
+            physics = com.customlauncher.core.model.PhysicsSpec(pinned = true),
+            logic = com.customlauncher.core.model.ObjectLogic(
+                behaviors = listOf(
+                    com.customlauncher.core.model.Behavior(
+                        trigger = com.customlauncher.core.model.BTrigger.SpinCrosses(500f),
+                        conditions = listOf(com.customlauncher.core.model.BCondition.Chance(50f)),
+                        actions = listOf(
+                            com.customlauncher.core.model.BAction.Launcher(Action.OpenApp("com.spotify.music/.Main")),
+                            com.customlauncher.core.model.BAction.Randomize(listOf(com.customlauncher.core.model.BAction.Wait(10))),
+                        ),
+                    )
+                ),
+                states = listOf(com.customlauncher.core.model.NodeState("spinning", image = "a.png")),
+            ),
+            clips = listOf(com.customlauncher.core.model.KeyframeClip("wave")),
+        )
+        val p = sample.updateCurrentActivity { a -> a.copy(pages = listOf(Page(widgets = listOf(node)))) }
+        assertEquals(p, ProfileCodec.decode(ProfileCodec.encode(p)))
+    }
+
     @Test fun repairsEmptyProfile() {
         val p = ProfileCodec.decode("{}")
         assertEquals(1, p.activities.size)

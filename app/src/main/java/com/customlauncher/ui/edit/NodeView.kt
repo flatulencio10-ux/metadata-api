@@ -63,6 +63,9 @@ import com.customlauncher.container
 import com.customlauncher.physics.BodyState
 import com.customlauncher.physics.LocalPhysics
 import com.customlauncher.ui.anim.NodeAnimator
+import com.customlauncher.objects.LocalRuntimes
+import com.customlauncher.ui.objects.RuntimeDecorations
+import com.customlauncher.ui.objects.runtimeOffset
 import com.customlauncher.ui.home.WidgetFrame
 import com.customlauncher.widget.WidgetConfig
 import com.customlauncher.widget.WidgetHost
@@ -149,15 +152,20 @@ fun NodeView(
             usesBlend(node) -> Modifier.canvasTransform(node)
             else -> Modifier.nodeTransform(node)
         }
+        val rt = if (node.logic != null) LocalRuntimes.current?.get(node.id) else null
         Box(
             Modifier
                 .offset(node.x.dp, node.y.dp)
+                .runtimeOffset(rt)
                 .size(node.width.dp, node.height.dp)
                 .then(modifier)
                 .then(transform)
         ) {
-            NodeAnimator(node.animation, host.isActive, Modifier.fillMaxSize(), particleSource = stickerFile(node)) {
-                WidgetFrame(node, wallpaper, host, Modifier.fillMaxSize())
+            NodeAnimator(
+                rt?.stateAnimation ?: node.animation, host.isActive, Modifier.fillMaxSize(),
+                particleSource = stickerFile(node), externalTapKey = rt?.tapKey ?: 0,
+            ) {
+                RuntimeDecorations(node, rt) { shown -> WidgetFrame(shown, wallpaper, host, Modifier.fillMaxSize()) }
             }
         }
         return

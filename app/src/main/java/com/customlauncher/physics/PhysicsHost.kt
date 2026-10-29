@@ -23,6 +23,8 @@ import com.customlauncher.core.model.PathPoint
 import com.customlauncher.core.model.WorldConfig
 import com.customlauncher.objects.ObjectEvent
 import com.customlauncher.objects.ObjectEventSink
+import com.customlauncher.objects.RuntimeRegistry
+import com.customlauncher.ui.edit.NodeBounds
 import com.customlauncher.widget.WidgetConfig
 import com.customlauncher.widgets.sticker.AlphaMask
 import com.customlauncher.widgets.sticker.StickerWidget
@@ -100,27 +102,54 @@ fun rememberPhysicsWorld(
 }
 
 /** Convex collider from a sticker's alpha channel (null for other node types). */
-private fun stickerHull(n: Node, dir: File): List<PathPoint>? {
+private fun stickerHull(n: Node, dir: File): List<PathPoint>? = stickerMaskOf(n, dir)?.convexHull()
+
+/** The alpha mask of a sticker node, or null for other nodes. */
+fun stickerMaskOf(n: Node, dir: File): AlphaMask? {
     if (n.type != StickerWidget.id) return null
-    val mask = AlphaMask.load(File(dir, WidgetConfig(n.config).string(StickerWidget.FILE))) ?: return null
-    return mask.convexHull()
+    return AlphaMask.load(File(dir, WidgetConfig(n.config).string(StickerWidget.FILE)))
 }
 
 /**
- * Touch handling for simulated objects, claimed in the Initial pass so nothing underneath
- * reacts: drag with a spring joint once the finger moves, release to throw, tangential
- * speed spins, and taps / double taps / long presses go to behaviours.
+ * Touch handling for interactive objects, claimed in the Initial pass so nothing underneath
+ * reacts. Physics bodies: drag with a spring joint once the finger moves, release to throw,
+ * tangential speed spins. Other objects ([touchNodes]): taps go to behaviours, and drags move
+ * them when "follow finger" is on. Taps / double taps / long presses become [ObjectEvent]s.
  */
-fun Modifier.physicsTouch(world: PhysicsWorld?, events: ObjectEventSink): Modifier =
-    if (world == null) this else this.pointerInput(world) {
+fun Modifier.objectTouch(
+    world: PhysicsWorld?,
+    touchNodes: List<Node>,
+    runtimes: RuntimeRegistry,
+    events: ObjectEventSink,
+    onFollowDragEnd: (String) -> Unit,
+    /** Alpha mask of a sticker node (taps on transparent pixels pass through). */
+    maskOf: (Node) -> AlphaMask? = { null },
+): Modifier =
+    if (world == null && touchNodes.isEmpty()) this else this.pointerInput(world, touchNodes) {
         var lastTapId: String? = null
         var lastTapAt = 0L
+        val masks = HashMap<String, AlphaMask?>()
+        fun nodeAt(x: Float, y: Float): String? = touchNodes.sortedByDescending { it.z }.firstOrNull { n ->
+            val rt = runtimes.peek(n.id)
+            val b = NodeBounds.of(n)
+            val lx = x - (rt?.dx ?: 0f)
+            val ly = y - (rt?.dy ?: 0f)
+            if (lx < b.left || lx > b.right || ly < b.top || ly > b.bottom) return@firstOrNull false
+            val mask = masks.getOrPut(n.id) { maskOf(n) }
+            mask == null || mask.isOpaque(
+                androidx.compose.ui.geometry.Offset(lx - b.left, ly - b.top),
+                androidx.compose.ui.unit.IntSize((b.right - b.left).toInt().coerceAtLeast(1), (b.bottom - b.top).toInt().coerceAtLeast(1)),
+            )
+        }?.id
+
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
             fun dp(o: androidx.compose.ui.geometry.Offset) = o / density
             val start = dp(down.position)
-            val id = world.bodyAt(start.x, start.y) ?: return@awaitEachGesture
+            val physical = world?.bodyAt(start.x, start.y)
+            val id = physical ?: nodeAt(start.x, start.y) ?: return@awaitEachGesture
             down.consume()
+            val rt = runtimes[id]
             val tracker = VelocityTracker()
             tracker.addPosition(down.uptimeMillis, down.position)
             var dragging = false
@@ -131,13 +160,17 @@ fun Modifier.physicsTouch(world: PhysicsWorld?, events: ObjectEventSink): Modifi
                 val ch = ev.changes.firstOrNull { it.id == down.id } ?: break
                 ch.consume()
                 tracker.addPosition(ch.uptimeMillis, ch.position)
-                last = dp(ch.position)
+                val now = dp(ch.position)
                 if (!dragging && (ch.position - down.position).getDistance() > viewConfiguration.touchSlop) {
                     dragging = true
-                    world.startDrag(id, start.x, start.y)
+                    if (physical != null) world.startDrag(id, start.x, start.y)
                     events.onEvent(ObjectEvent.DragStart(id))
                 }
-                if (dragging) world.drag(last.x, last.y)
+                if (dragging) {
+                    if (physical != null) world.drag(now.x, now.y)
+                    else if (rt.followFinger) { rt.dx += now.x - last.x; rt.dy += now.y - last.y }
+                }
+                last = now
                 if (!dragging && !longPressed && ch.uptimeMillis - down.uptimeMillis > viewConfiguration.longPressTimeoutMillis) {
                     longPressed = true
                     events.onEvent(ObjectEvent.LongPress(id))
@@ -148,7 +181,8 @@ fun Modifier.physicsTouch(world: PhysicsWorld?, events: ObjectEventSink): Modifi
             val vx = v.x / density
             val vy = v.y / density
             if (dragging) {
-                world.endDrag(vx, vy, last.x, last.y)
+                if (physical != null) world.endDrag(vx, vy, last.x, last.y)
+                else if (rt.followFinger) onFollowDragEnd(id)
                 events.onEvent(ObjectEvent.DragEnd(id, kotlin.math.hypot(vx, vy)))
             } else if (!longPressed) {
                 val now = down.uptimeMillis
@@ -160,3 +194,4 @@ fun Modifier.physicsTouch(world: PhysicsWorld?, events: ObjectEventSink): Modifi
             }
         }
     }
+

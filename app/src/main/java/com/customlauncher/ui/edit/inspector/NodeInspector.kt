@@ -298,7 +298,7 @@ private fun AnimationTab(n: Node, profile: LayoutProfile, vm: LauncherViewModel,
 
 @Composable
 internal fun BehaviorsTab(n: Node, profile: LayoutProfile, vm: LauncherViewModel) {
-    Hint("Behaviours: \"When ___ do ___\" rules for this object.")
+    com.customlauncher.ui.objects.BehaviorEditor(n, profile, vm)
 }
 
 @Composable

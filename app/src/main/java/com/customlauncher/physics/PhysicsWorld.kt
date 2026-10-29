@@ -343,6 +343,13 @@ class PhysicsWorld(
         wakeups.trySend(Unit)
     }
 
+    /** Turns simulation of one body off (it freezes in place) or back on. */
+    fun setEnabled(id: String, enabled: Boolean) {
+        val b = bodies[id] ?: return
+        b.isActive = enabled
+        if (enabled) { b.isAwake = true; wakeups.trySend(Unit) }
+    }
+
     /** Teleports a body (top-left in dp). */
     fun moveTo(id: String, x: Float, y: Float) {
         val b = bodies[id] ?: return

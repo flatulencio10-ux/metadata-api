@@ -77,9 +77,12 @@ fun NodeAnimator(
     /** Changing this replays the entrance (editor preview). */
     replayKey: Int = 0,
     particleSource: File? = null,
+    /** Taps that arrive through the object layer (behaviours) instead of the sticker itself. */
+    externalTapKey: Int = 0,
     content: @Composable () -> Unit,
 ) {
     val controller = remember { NodeAnimController() }
+    LaunchedEffect(externalTapKey) { if (externalTapKey > 0) controller.onTap() }
     if (anim == null || anim.isEmpty) {
         CompositionLocalProvider(LocalNodeAnim provides controller) { Box(modifier) { content() } }
         return

@@ -67,6 +67,10 @@ data class WidgetInstance(
     val animation: NodeAnimations? = null,
     /** Physics body (null = not simulated). */
     val physics: PhysicsSpec? = null,
+    /** Behaviours, state machine and variables (null = none). */
+    val logic: ObjectLogic? = null,
+    /** Named keyframe animation clips. */
+    val clips: List<KeyframeClip> = emptyList(),
 )
 
 /** Kept for readability in new code: every placed element is a node. */
@@ -245,6 +249,8 @@ data class LayoutProfile(
     val appOverrides: Map<String, AppOverride> = emptyMap(),
     val folders: List<AppFolder> = emptyList(),
     val performance: PerformanceConfig = PerformanceConfig(),
+    /** Initial values of global behaviour variables. */
+    val globalVariables: Map<String, Double> = emptyMap(),
 ) {
     val currentActivity: ActivityProfile
         get() = activities.firstOrNull { it.id == currentActivityId } ?: activities.first()

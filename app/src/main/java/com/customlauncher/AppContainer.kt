@@ -15,6 +15,10 @@ import com.customlauncher.data.settings.LauncherPrefs
 import com.customlauncher.data.settings.SecureStore
 import com.customlauncher.data.stickers.StickerRepository
 import com.customlauncher.runtime.AnimationSignals
+import com.customlauncher.objects.RuntimeRegistry
+import com.customlauncher.objects.SoundAndHaptics
+import com.customlauncher.objects.TriggerSources
+import com.customlauncher.objects.VariablePersistence
 import com.customlauncher.runtime.PowerGovernor
 import com.customlauncher.runtime.TiltSensor
 import com.customlauncher.data.system.CalendarRepository
@@ -55,6 +59,10 @@ class AppContainer(context: Context) {
     val powerGovernor by lazy { PowerGovernor(app, profileRepository, appScope) }
     val tiltSensor by lazy { TiltSensor(app, appScope) }
     val animationSignals = AnimationSignals()
+    val triggerSources by lazy { TriggerSources(app, appScope) }
+    val soundAndHaptics by lazy { SoundAndHaptics(app) }
+    val runtimes = RuntimeRegistry()
+    val variables by lazy { VariablePersistence.load(app, appScope) }
     val autoSwitcher by lazy { ActivityAutoSwitcher(app, profileRepository, systemStats, appScope) }
     val actionExecutor by lazy {
         ActionExecutor(app, appScope, bus, appRepository, shortcutRepository, profileRepository)

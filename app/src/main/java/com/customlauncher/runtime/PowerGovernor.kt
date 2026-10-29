@@ -27,7 +27,9 @@ import com.customlauncher.data.profile.ProfileRepository
 class PowerGovernor(context: Context, profiles: ProfileRepository, scope: CoroutineScope) {
     private val power = context.getSystemService(PowerManager::class.java)
     private val saver = MutableStateFlow(power.isPowerSaveMode)
-    private val battery = MutableStateFlow(100)
+    private val _battery = MutableStateFlow(100)
+    /** Battery level in percent (behaviour triggers). */
+    val battery: StateFlow<Int> = _battery
 
     init {
         val receiver = object : BroadcastReceiver() {
@@ -36,7 +38,7 @@ class PowerGovernor(context: Context, profiles: ProfileRepository, scope: Corout
                 if (intent?.action == Intent.ACTION_BATTERY_CHANGED) {
                     val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
                     val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
-                    if (level >= 0 && scale > 0) battery.value = level * 100 / scale
+                    if (level >= 0 && scale > 0) _battery.value = level * 100 / scale
                 }
             }
         }
@@ -48,7 +50,7 @@ class PowerGovernor(context: Context, profiles: ProfileRepository, scope: Corout
 
     /** True while idle loops and physics may run. */
     val continuousAllowed: StateFlow<Boolean> = combine(
-        saver, battery, profiles.profile.filterNotNull().map { it.performance.ignoreBatterySaver },
+        saver, _battery, profiles.profile.filterNotNull().map { it.performance.ignoreBatterySaver },
     ) { isSaver, level, override -> override || (!isSaver && level >= 15) }
         .stateIn(scope, SharingStarted.Eagerly, true)
 }

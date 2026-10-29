@@ -35,7 +35,12 @@ import com.customlauncher.core.model.Page
 import com.customlauncher.core.model.Wallpaper
 import androidx.compose.runtime.CompositionLocalProvider
 import com.customlauncher.physics.LocalPhysics
-import com.customlauncher.physics.physicsTouch
+import com.customlauncher.physics.objectTouch
+import com.customlauncher.physics.stickerMaskOf
+import com.customlauncher.objects.BehaviorHost
+import com.customlauncher.objects.LocalRuntimes
+import com.customlauncher.objects.touchableObjects
+import com.customlauncher.container
 import com.customlauncher.physics.rememberPhysicsWorld
 import com.customlauncher.ui.LauncherViewModel
 import com.customlauncher.ui.edit.Guide
@@ -87,8 +92,17 @@ fun PageView(
         events = vm.objectEvents,
         onSettled = { vm.commitPhysicsPoses(it) },
     )
-    CompositionLocalProvider(LocalPhysics provides physics) {
-    Box(Modifier.fillMaxSize().physicsTouch(physics, vm.objectEvents)) {
+    val c = androidx.compose.ui.platform.LocalContext.current.container
+    if (!editMode) BehaviorHost(page.widgets + vm.pinnedNodes(), physics, isActive, vm, vm.sessionExtensions)
+    val touchNodes = if (editMode) emptyList() else touchableObjects(page.widgets, vm::isScripted)
+    CompositionLocalProvider(LocalPhysics provides physics, LocalRuntimes provides c.runtimes) {
+    Box(
+        Modifier.fillMaxSize().objectTouch(
+            physics, touchNodes, c.runtimes, vm.objectEvents,
+            onFollowDragEnd = vm::commitRuntimeOffset,
+            maskOf = { stickerMaskOf(it, c.stickerRepository.dir) },
+        )
+    ) {
         if (editMode && effectiveGrid.showGrid && effectiveGrid.snapEnabled) GridDots(effectiveGrid.snapDp)
         NodeList(
             nodes = page.widgets.filter { it.layer == NodeLayer.NORMAL },
