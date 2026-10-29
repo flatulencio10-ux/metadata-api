@@ -8,6 +8,7 @@ import com.customlauncher.widgets.football.FootballWidget
 import com.customlauncher.widgets.media.MediaWidget
 import com.customlauncher.widgets.notes.NotesWidget
 import com.customlauncher.widgets.stats.SystemStatsWidget
+import com.customlauncher.widgets.sticker.StickerWidget
 
 /**
  * Every available widget. Adding a widget = one new file + one line here.
@@ -23,6 +24,7 @@ object WidgetRegistry {
         AppGridWidget,
         AppIconWidget,
         FootballWidget,
+        StickerWidget,
     )
 
     private val byId = all.associateBy { it.id }

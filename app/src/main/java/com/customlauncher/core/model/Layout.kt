@@ -24,9 +24,14 @@ data class WidgetStyle(
     val paddingDp: Float = 8f,
 )
 
+/** Where a node draws relative to panels (docks/bars). */
+@Serializable
+enum class NodeLayer { NORMAL, ABOVE_PANELS }
+
 /**
- * One placed widget. Position and size are in dp relative to the page's content area,
- * which keeps placement free-form (KDE style) while staying density independent.
+ * One element on the canvas ("node"): widgets, app icons, stickers and objects all share it.
+ * Position/size are in dp relative to the page's content area; the transform (rotation,
+ * scale, flip, pivot) is applied on top, so placement is completely free.
  */
 @Serializable
 data class WidgetInstance(
@@ -42,7 +47,26 @@ data class WidgetInstance(
     val style: WidgetStyle = WidgetStyle(),
     /** Widget-specific settings, read via WidgetConfig. */
     val config: JsonObject = JsonObject(emptyMap()),
+    /** User-visible name in the layers panel (empty = widget name). */
+    val name: String = "",
+    /** Degrees, clockwise, around the pivot. */
+    val rotation: Float = 0f,
+    val scale: Float = 1f,
+    val flipX: Boolean = false,
+    val flipY: Boolean = false,
+    /** Pivot for rotation/scale as a fraction of the node size. */
+    val pivotX: Float = 0.5f,
+    val pivotY: Float = 0.5f,
+    /** Locked nodes can't be moved or resized in Edit Mode. */
+    val locked: Boolean = false,
+    val hidden: Boolean = false,
+    val layer: NodeLayer = NodeLayer.NORMAL,
+    /** Nodes sharing a group id move together in Edit Mode. */
+    val groupId: String? = null,
 )
+
+/** Kept for readability in new code: every placed element is a node. */
+typealias Node = WidgetInstance
 
 @Serializable
 sealed interface Wallpaper {
@@ -130,6 +154,8 @@ data class ActivityProfile(
     val pages: List<Page> = listOf(Page()),
     val panels: List<Panel> = emptyList(),
     val defaultPage: Int = 0,
+    /** Nodes pinned across all pages: fixed on screen while pages swipe underneath. */
+    val pinned: List<WidgetInstance> = emptyList(),
 )
 
 /** Automatic activity switching. Rules are checked top to bottom; the first match wins. */
@@ -154,12 +180,15 @@ sealed interface AutoSwitchRule {
     data class Charging(override val activityId: String, val charging: Boolean = true, override val enabled: Boolean = true) : AutoSwitchRule
 }
 
+/** Optional placement aids. Placement is free by default; the grid is only an overlay. */
 @Serializable
 data class GridConfig(
-    val snapEnabled: Boolean = true,
+    val snapEnabled: Boolean = false,
     /** Snap step in dp; small values give "fine" snapping. */
     val snapDp: Float = 8f,
     val showGrid: Boolean = true,
+    /** Smart guides: snap to page centre/edges and other nodes while dragging. */
+    val guides: Boolean = true,
 )
 
 @Serializable
@@ -205,6 +234,7 @@ data class LayoutProfile(
 
     fun findWidget(instanceId: String): WidgetInstance? =
         activities.asSequence().flatMap { it.pages }.flatMap { it.widgets }.firstOrNull { it.id == instanceId }
+            ?: activities.asSequence().flatMap { it.pinned }.firstOrNull { it.id == instanceId }
             ?: activities.asSequence().flatMap { it.panels }.flatMap { it.items }
                 .filterIsInstance<PanelItem.Widget>().map { it.widget }.firstOrNull { it.id == instanceId }
 
@@ -220,6 +250,19 @@ data class LayoutProfile(
                         if (item is PanelItem.Widget && item.widget.id == instanceId) item.copy(widget = transform(item.widget)) else item
                     })
                 },
+                pinned = act.pinned.map { if (it.id == instanceId) transform(it) else it },
+            )
+        })
+
+    /** Removes a node from wherever it lives (pages, pinned, panels). */
+    fun removeWidget(instanceId: String): LayoutProfile =
+        copy(activities = activities.map { act ->
+            act.copy(
+                pages = act.pages.map { page -> page.copy(widgets = page.widgets.filterNot { it.id == instanceId }) },
+                panels = act.panels.map { panel ->
+                    panel.copy(items = panel.items.filterNot { it is PanelItem.Widget && it.widget.id == instanceId })
+                },
+                pinned = act.pinned.filterNot { it.id == instanceId },
             )
         })
 

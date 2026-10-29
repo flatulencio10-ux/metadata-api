@@ -21,6 +21,12 @@ import com.customlauncher.core.model.Page
 import com.customlauncher.core.model.PanelItem
 import com.customlauncher.core.model.WidgetInstance
 import com.customlauncher.core.model.WidgetStyle
+import com.customlauncher.core.model.Node
+import com.customlauncher.core.model.NodeLayer
+import com.customlauncher.data.stickers.StickerAsset
+import com.customlauncher.ui.edit.Guide
+import com.customlauncher.ui.edit.NodeToolbarAction
+import com.customlauncher.widgets.sticker.StickerWidget
 import com.customlauncher.data.apps.AppInfo
 import com.customlauncher.data.apps.AppRepository
 import com.customlauncher.widget.WidgetConfig
@@ -83,6 +89,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Size of the page content area, used to place new widgets and clamp drags. */
     var pageSizeDp by mutableStateOf(DpSize(360.dp, 640.dp))
+
+    /** Smart guide lines currently shown while dragging in Edit Mode. */
+    var guides by mutableStateOf<List<Guide>>(emptyList())
 
     /** Bounds (in root px) of widgets on the visible page; used to pick a widget on long press. */
     val widgetBounds = HashMap<String, Rect>()
@@ -180,38 +189,22 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         it.copy(x = x, y = y, width = w, height = h)
     }
 
-    fun bringToFront(id: String) = editPages { pages ->
-        pages.map { page ->
-            if (page.widgets.none { it.id == id }) page
-            else page.copy(widgets = page.widgets.map { if (it.id == id) it.copy(z = page.widgets.maxOf { w -> w.z } + 1) else it })
-        }
+    fun bringToFront(id: String) = editNodeLists { list ->
+        if (list.none { it.id == id }) list else list.map { if (it.id == id) it.copy(z = list.maxOf { w -> w.z } + 1) else it }
     }
 
-    fun sendToBack(id: String) = editPages { pages ->
-        pages.map { page ->
-            if (page.widgets.none { it.id == id }) page
-            else page.copy(widgets = page.widgets.map { if (it.id == id) it.copy(z = page.widgets.minOf { w -> w.z } - 1) else it })
-        }
+    fun sendToBack(id: String) = editNodeLists { list ->
+        if (list.none { it.id == id }) list else list.map { if (it.id == id) it.copy(z = list.minOf { w -> w.z } - 1) else it }
     }
 
-    fun duplicateWidget(id: String) = editPages { pages ->
-        pages.map { page ->
-            val src = page.widgets.firstOrNull { it.id == id } ?: return@map page
-            page.copy(widgets = page.widgets + src.copy(id = com.customlauncher.core.model.newId(), x = src.x + 16, y = src.y + 16, z = src.z + 1))
-        }
+    /** Duplicates with everything (config, transform, behaviours), offset a little. */
+    fun duplicateWidget(id: String) = editNodeLists { list ->
+        val src = list.firstOrNull { it.id == id } ?: return@editNodeLists list
+        list + src.copy(id = com.customlauncher.core.model.newId(), x = src.x + 16, y = src.y + 16, z = list.maxOf { it.z } + 1, groupId = null)
     }
 
     fun deleteWidget(id: String) {
-        edit { p ->
-            p.copy(activities = p.activities.map { act ->
-                act.copy(
-                    pages = act.pages.map { page -> page.copy(widgets = page.widgets.filterNot { it.id == id }) },
-                    panels = act.panels.map { panel ->
-                        panel.copy(items = panel.items.filterNot { it is PanelItem.Widget && it.widget.id == id })
-                    },
-                )
-            })
-        }
+        edit { it.removeWidget(id) }
         if (selectedWidgetId == id) selectedWidgetId = null
     }
 
@@ -229,6 +222,102 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 else -> page
             }
         }
+    }
+
+    // ---- Edit Mode: free transform ---------------------------------------------------
+
+    /**
+     * Applies [transform] to every node list of every activity: each page's nodes and the
+     * pinned list. Node ops below use it so they work wherever the node lives.
+     */
+    private fun editNodeLists(transform: (List<Node>) -> List<Node>) = edit { p ->
+        p.copy(activities = p.activities.map { a ->
+            a.copy(pages = a.pages.map { it.copy(widgets = transform(it.widgets)) }, pinned = transform(a.pinned))
+        })
+    }
+
+    /** Commits a transform from Edit Mode; group members move by the same amount. */
+    fun commitNode(old: Node, new: Node) {
+        val dx = new.x - old.x
+        val dy = new.y - old.y
+        val group = old.groupId
+        editNodeLists { list ->
+            list.map {
+                when {
+                    it.id == new.id -> new
+                    group != null && it.groupId == group && !it.locked -> it.copy(x = it.x + dx, y = it.y + dy)
+                    else -> it
+                }
+            }
+        }
+    }
+
+    fun onNodeToolbar(action: NodeToolbarAction, node: Node) {
+        when (action) {
+            NodeToolbarAction.FLIP_H -> updateWidget(node.id) { it.copy(flipX = !it.flipX) }
+            NodeToolbarAction.FLIP_V -> updateWidget(node.id) { it.copy(flipY = !it.flipY) }
+            NodeToolbarAction.DUPLICATE -> duplicateWidget(node.id)
+            NodeToolbarAction.FRONT -> bringToFront(node.id)
+            NodeToolbarAction.BACK -> sendToBack(node.id)
+            NodeToolbarAction.LOCK -> updateWidget(node.id) { it.copy(locked = !it.locked) }
+            NodeToolbarAction.LAYER -> updateWidget(node.id) {
+                it.copy(layer = if (it.layer == NodeLayer.ABOVE_PANELS) NodeLayer.NORMAL else NodeLayer.ABOVE_PANELS)
+            }
+            NodeToolbarAction.PIN -> togglePinned(node.id)
+            NodeToolbarAction.EDIT -> if (node.type == StickerWidget.id) stickerEditorTarget = node.id else configuringWidgetId = node.id
+            NodeToolbarAction.DELETE -> deleteWidget(node.id)
+        }
+    }
+
+    /** Moves a node between the current page and the activity's "pinned across all pages" layer. */
+    fun togglePinned(id: String) = updateActivity { act ->
+        val pinned = act.pinned.firstOrNull { it.id == id }
+        if (pinned != null) {
+            val page = currentPage.coerceIn(0, act.pages.lastIndex)
+            act.copy(
+                pinned = act.pinned - pinned,
+                pages = act.pages.mapIndexed { i, p -> if (i == page) p.copy(widgets = p.widgets + pinned) else p },
+            )
+        } else {
+            val node = act.pages.asSequence().flatMap { it.widgets }.firstOrNull { it.id == id } ?: return@updateActivity act
+            act.copy(
+                pinned = act.pinned + node,
+                pages = act.pages.map { p -> p.copy(widgets = p.widgets.filterNot { it.id == id }) },
+            )
+        }
+    }
+
+    // ---- Stickers ------------------------------------------------------------------
+
+    /** Node whose sticker is open in the sticker editor. */
+    var stickerEditorTarget by mutableStateOf<String?>(null)
+    var stickerSourceSheetOpen by mutableStateOf(false)
+
+    /** Imports a file (gallery, files, clipboard, share) and places it on the current page. */
+    fun importSticker(uri: Uri) = viewModelScope.launch {
+        runCatching { c.stickerRepository.import(uri) }
+            .onSuccess { addSticker(it) }
+            .onFailure { c.bus.send(com.customlauncher.actions.UiCommand.Message(it.message ?: "Import failed")) }
+    }
+
+    /** Places a library sticker centred on the current page, longest side 160 dp. */
+    fun addSticker(asset: StickerAsset, pageIndex: Int = currentPage) {
+        val aspect = if (asset.height > 0) asset.width.toFloat() / asset.height else 1f
+        val (w, h) = if (aspect >= 1f) 160f to 160f / aspect else 160f * aspect to 160f
+        val page = profile.value?.currentActivity?.pages?.getOrNull(pageIndex)
+        val node = WidgetInstance(
+            type = StickerWidget.id,
+            x = (pageSizeDp.width.value - w) / 2f,
+            y = (pageSizeDp.height.value - h) / 2f,
+            width = w, height = h,
+            z = (page?.widgets?.maxOfOrNull { it.z } ?: 0) + 1,
+            style = WidgetStyle(useCardStyle = false, backgroundColor = 0x00000000, paddingDp = 0f),
+            config = StickerWidget.configFor(asset).json,
+            name = asset.name,
+        )
+        editPage(pageIndex) { it.copy(widgets = it.widgets + node) }
+        editMode = true
+        selectedWidgetId = node.id
     }
 
     // ---- Edit Mode: pages ----------------------------------------------------------

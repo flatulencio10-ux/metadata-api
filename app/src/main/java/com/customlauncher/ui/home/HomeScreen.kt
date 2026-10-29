@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.customlauncher.core.model.Edge
+import com.customlauncher.core.model.NodeLayer
 import com.customlauncher.core.model.LayoutProfile
 import com.customlauncher.gestures.GestureCallbacks
 import com.customlauncher.gestures.launcherGestures
@@ -128,6 +129,18 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
                     }
                 }
 
+                // Pinned nodes stay fixed on screen while pages swipe underneath.
+                NodeList(
+                    nodes = activity.pinned.filter { it.layer == NodeLayer.NORMAL },
+                    allOnPage = activity.pinned + (activity.pages.getOrNull(pagerState.currentPage)?.widgets.orEmpty()),
+                    wallpaper = activity.wallpaper,
+                    isActive = resumed && !overlayOpen,
+                    editMode = vm.editMode,
+                    grid = profile.grid,
+                    vm = vm,
+                    pinned = true,
+                )
+
                 if (activity.pages.size > 1) {
                     PageIndicator(
                         count = activity.pages.size,
@@ -158,6 +171,57 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
                     )
                     if (!panel.autoHide) offset += panel.footprint()
                 }
+            }
+
+            // Layer above the panels: page nodes marked "above panels" (they slide with their
+            // page) and pinned nodes on that layer. Also draws the smart guides.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(
+                        start = reserved.getValue(Edge.LEFT),
+                        top = reserved.getValue(Edge.TOP),
+                        end = reserved.getValue(Edge.RIGHT),
+                        bottom = reserved.getValue(Edge.BOTTOM),
+                    )
+            ) {
+                val cur = pagerState.currentPage
+                for (i in (cur - 1)..(cur + 1)) {
+                    val page = activity.pages.getOrNull(i) ?: continue
+                    val above = page.widgets.filter { it.layer == NodeLayer.ABOVE_PANELS }
+                    if (above.isEmpty()) continue
+                    key("above-${page.id}") {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    translationX = ((i - pagerState.currentPage) - pagerState.currentPageOffsetFraction) * size.width
+                                }
+                        ) {
+                            NodeList(
+                                nodes = above,
+                                allOnPage = page.widgets,
+                                wallpaper = page.wallpaper ?: activity.wallpaper,
+                                isActive = resumed && !overlayOpen && pagerState.settledPage == i,
+                                editMode = vm.editMode,
+                                grid = profile.grid,
+                                vm = vm,
+                                pinned = false,
+                            )
+                        }
+                    }
+                }
+                NodeList(
+                    nodes = activity.pinned.filter { it.layer == NodeLayer.ABOVE_PANELS },
+                    allOnPage = activity.pinned,
+                    wallpaper = activity.wallpaper,
+                    isActive = resumed && !overlayOpen,
+                    editMode = vm.editMode,
+                    grid = profile.grid,
+                    vm = vm,
+                    pinned = true,
+                )
+                if (vm.editMode) GuideLines(vm.guides)
             }
         }
     }

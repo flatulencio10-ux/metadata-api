@@ -3,8 +3,6 @@ package com.customlauncher.ui.home
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
@@ -15,14 +13,20 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import com.customlauncher.core.model.GridConfig
+import com.customlauncher.core.model.Node
+import com.customlauncher.core.model.NodeLayer
 import com.customlauncher.core.model.Page
 import com.customlauncher.core.model.Wallpaper
 import com.customlauncher.ui.LauncherViewModel
-import com.customlauncher.ui.edit.EditableWidget
+import com.customlauncher.ui.edit.Guide
+import com.customlauncher.ui.edit.NodeBounds
+import com.customlauncher.ui.edit.NodeEditEnv
+import com.customlauncher.ui.edit.NodeView
 import com.customlauncher.widget.WidgetHost
 
 /**
- * One home page: optional page wallpaper plus freely placed widgets ordered by z.
+ * One home page: its NORMAL-layer nodes ordered by z. Nodes on the ABOVE_PANELS layer are
+ * drawn by [NodeList] in the overlay above the panels instead.
  * [isActive] is false for off-screen pages so their widgets pause updates.
  */
 @Composable
@@ -37,48 +41,86 @@ fun PageView(
     val wallpaper = page.wallpaper ?: activityWallpaper
     Box(Modifier.fillMaxSize()) {
         if (editMode && grid.showGrid && grid.snapEnabled) GridDots(grid.snapDp)
+        NodeList(
+            nodes = page.widgets.filter { it.layer == NodeLayer.NORMAL },
+            allOnPage = page.widgets,
+            wallpaper = wallpaper,
+            isActive = isActive,
+            editMode = editMode,
+            grid = grid,
+            vm = vm,
+            pinned = false,
+        )
+    }
+}
 
-        page.widgets.sortedBy { it.z }.forEach { stored ->
-            key(stored.id) {
-                // Inspector sliders preview style changes before committing them.
-                val instance = vm.stylePreview?.takeIf { it.first == stored.id }?.let { stored.copy(style = it.second) } ?: stored
-                val host = remember(instance.id, isActive, editMode) {
-                    WidgetHost(
-                        instanceId = instance.id,
-                        isActive = isActive,
-                        isEditing = editMode,
-                        updateConfig = { vm.updateWidgetConfig(instance.id, it) },
-                        openFullscreen = { vm.fullscreenWidgetId = instance.id },
-                        openConfig = { vm.configuringWidgetId = instance.id },
-                        runAction = vm::run,
-                    )
-                }
-                if (editMode) {
-                    EditableWidget(
-                        instance = instance,
-                        wallpaper = wallpaper,
-                        host = host,
-                        selected = vm.selectedWidgetId == instance.id,
-                        pageSize = vm.pageSizeDp,
-                        snap = vm::snap,
-                        onSelect = { vm.selectedWidgetId = instance.id },
-                        onCommit = { x, y, w, h -> vm.moveResizeWidget(instance.id, x, y, w, h) },
-                    )
-                } else {
-                    WidgetFrame(
-                        instance = instance,
-                        wallpaper = wallpaper,
-                        host = host,
-                        modifier = Modifier
-                            .offset(instance.x.dp, instance.y.dp)
-                            .size(instance.width.dp, instance.height.dp)
-                            .then(
-                                if (isActive) Modifier.onGloballyPositioned { vm.widgetBounds[instance.id] = it.boundsInRoot() }
-                                else Modifier
-                            ),
-                    )
-                }
+/**
+ * Renders a list of nodes (z-ordered) for a page, the above-panels overlay or the pinned
+ * layer, with Edit Mode transform support. [allOnPage] feeds the smart guides.
+ */
+@Composable
+fun NodeList(
+    nodes: List<Node>,
+    allOnPage: List<Node>,
+    wallpaper: Wallpaper,
+    isActive: Boolean,
+    editMode: Boolean,
+    grid: GridConfig,
+    vm: LauncherViewModel,
+    pinned: Boolean,
+) {
+    nodes.sortedBy { it.z }.forEach { stored ->
+        key(stored.id) {
+            // Inspector sliders preview style changes before committing them.
+            val instance = vm.stylePreview?.takeIf { it.first == stored.id }?.let { stored.copy(style = it.second) } ?: stored
+            val host = remember(instance.id, isActive, editMode) {
+                WidgetHost(
+                    instanceId = instance.id,
+                    isActive = isActive,
+                    isEditing = editMode,
+                    updateConfig = { vm.updateWidgetConfig(instance.id, it) },
+                    openFullscreen = { vm.fullscreenWidgetId = instance.id },
+                    openConfig = { vm.configuringWidgetId = instance.id },
+                    runAction = vm::run,
+                )
             }
+            val env = if (!editMode) null else NodeEditEnv(
+                pageSize = vm.pageSizeDp,
+                gridEnabled = grid.snapEnabled,
+                gridSnap = vm::snap,
+                guidesEnabled = grid.guides,
+                others = allOnPage.filter { it.id != instance.id && !it.hidden }.map { NodeBounds.of(it) },
+                onSelect = { vm.selectedWidgetId = it },
+                onCommit = vm::commitNode,
+                onGuides = { vm.guides = it },
+                onToolbar = vm::onNodeToolbar,
+                pinned = pinned,
+            )
+            NodeView(
+                node = instance,
+                wallpaper = wallpaper,
+                host = host,
+                editMode = editMode,
+                selected = vm.selectedWidgetId == instance.id,
+                env = env,
+                modifier = if (isActive && !editMode) Modifier.reportBounds(vm, instance.id) else Modifier,
+            )
+        }
+    }
+}
+
+private fun Modifier.reportBounds(vm: LauncherViewModel, id: String): Modifier =
+    this.onGloballyPositioned { vm.widgetBounds[id] = it.boundsInRoot() }
+
+/** Smart guide lines while dragging in Edit Mode. */
+@Composable
+fun GuideLines(guides: List<Guide>) {
+    if (guides.isEmpty()) return
+    Canvas(Modifier.fillMaxSize()) {
+        guides.forEach { g ->
+            val p = g.position.dp.toPx()
+            if (g.vertical) drawLine(Color(0xFFFF4FA3), Offset(p, 0f), Offset(p, size.height), strokeWidth = 1.dp.toPx())
+            else drawLine(Color(0xFFFF4FA3), Offset(0f, p), Offset(size.width, p), strokeWidth = 1.dp.toPx())
         }
     }
 }

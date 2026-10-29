@@ -70,6 +70,7 @@ import com.customlauncher.ui.common.LabeledSlider
 import com.customlauncher.ui.common.WallpaperEditor
 import com.customlauncher.widget.WidgetConfig
 import com.customlauncher.widget.WidgetRegistry
+import com.customlauncher.widgets.sticker.StickerWidget
 import kotlinx.coroutines.launch
 
 /** Edit Mode chrome: toolbar on top, inspector for the selected widget at the bottom. */
@@ -208,8 +209,9 @@ private fun AddWidgetSheet(vm: LauncherViewModel) {
                     supportingContent = { if (widget.description.isNotEmpty()) Text(widget.description) },
                     leadingContent = { Icon(widget.icon, null) },
                     modifier = Modifier.clickable {
-                        vm.addWidget(widget.id)
                         vm.addWidgetSheetOpen = false
+                        // Stickers need an image first.
+                        if (widget.id == StickerWidget.id) vm.stickerSourceSheetOpen = true else vm.addWidget(widget.id)
                     },
                 )
             }

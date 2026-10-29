@@ -12,6 +12,7 @@ import com.customlauncher.data.db.LauncherDatabase
 import com.customlauncher.data.profile.ProfileRepository
 import com.customlauncher.data.settings.LauncherPrefs
 import com.customlauncher.data.settings.SecureStore
+import com.customlauncher.data.stickers.StickerRepository
 import com.customlauncher.data.system.CalendarRepository
 import com.customlauncher.data.system.ContactsRepository
 import com.customlauncher.data.system.MediaRepository
@@ -45,6 +46,7 @@ class AppContainer(context: Context) {
     val calendarRepository by lazy { CalendarRepository(app) }
     val contactsRepository by lazy { ContactsRepository(app) }
     val mediaRepository by lazy { MediaRepository(app) }
+    val stickerRepository by lazy { StickerRepository(app, appScope) }
     val autoSwitcher by lazy { ActivityAutoSwitcher(app, profileRepository, systemStats, appScope) }
     val actionExecutor by lazy {
         ActionExecutor(app, appScope, bus, appRepository, shortcutRepository, profileRepository)

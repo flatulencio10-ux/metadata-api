@@ -71,6 +71,26 @@
             </intent-filter>
         </activity>
 
+        <!-- Share target: "Add to home screen as sticker" from any app's share sheet. -->
+        <activity
+            android:name=".ui.stickers.ShareStickerActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/share_sticker_label"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/json" />
+            </intent-filter>
+        </activity>
+
         <!-- Lock screen, recents, notification shade and volume-key actions. -->
         <service
             android:name=".services.LauncherAccessibilityService"

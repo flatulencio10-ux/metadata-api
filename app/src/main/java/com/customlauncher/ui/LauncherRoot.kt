@@ -46,6 +46,7 @@ import com.customlauncher.ui.home.HomeScreen
 import com.customlauncher.ui.home.LocalRootSize
 import com.customlauncher.ui.onboarding.OnboardingScreen
 import com.customlauncher.ui.search.SearchOverlay
+import com.customlauncher.ui.stickers.StickerSourceSheet
 import com.customlauncher.ui.theme.LauncherTheme
 
 /** Top-level composable of the home screen: themes, overlays and command handling. */
@@ -118,6 +119,7 @@ fun LauncherRoot(vm: LauncherViewModel) {
                 }
                 vm.fullscreenWidgetId?.let { FullscreenWidget(profile, it, vm) }
                 vm.configuringWidgetId?.let { WidgetConfigDialog(profile, vm, it) }
+                if (vm.stickerSourceSheetOpen) StickerSourceSheet(vm)
                 vm.panelAddTargetId?.let { panelId ->
                     AppPickerDialog("Add apps to panel", multi = true, onDismiss = { vm.panelAddTargetId = null }) { keys ->
                         vm.addAppsToPanel(panelId, keys)
