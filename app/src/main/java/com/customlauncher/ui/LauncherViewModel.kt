@@ -339,6 +339,42 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ---- Object presets ---------------------------------------------------------------
+
+    /** Adds a preset object to the centre of the current page. */
+    fun addPreset(preset: com.customlauncher.objects.ObjectPreset, pageIndex: Int = currentPage) {
+        val page = profile.value?.currentActivity?.pages?.getOrNull(pageIndex)
+        val node = com.customlauncher.objects.Presets.node(
+            preset, pageSizeDp.width.value / 2f, pageSizeDp.height.value * 0.4f, (page?.widgets?.maxOfOrNull { it.z } ?: 0) + 1,
+        )
+        editPage(pageIndex) { it.copy(widgets = it.widgets + node) }
+        selectedWidgetId = node.id
+    }
+
+    /** "Spawn" behaviour action: drops a preset object just below [nearId] on the same page. */
+    fun spawnPreset(presetId: String, nearId: String) {
+        val preset = com.customlauncher.objects.Presets.find(presetId) ?: return
+        editPages { pages ->
+            pages.map { page ->
+                val near = page.widgets.firstOrNull { it.id == nearId } ?: return@map page
+                val count = page.widgets.count { it.physics?.type == com.customlauncher.core.model.BodyType.DYNAMIC }
+                if (count >= (profile.value?.performance?.maxDynamicBodies ?: 30)) return@map page
+                page.copy(widgets = page.widgets + com.customlauncher.objects.Presets.node(
+                    preset.copy(color = listOf(0xFFF67400, 0xFFDA4453, 0xFF27AE60, 0xFF1D99F3, 0xFFFDBC4B).random()),
+                    near.x + near.width / 2f, near.y + near.height + preset.height, page.widgets.maxOf { it.z } + 1,
+                ))
+            }
+        }
+    }
+
+    fun applyTemplate(id: String, preset: com.customlauncher.objects.ObjectPreset) =
+        updateWidget(id) { com.customlauncher.objects.Presets.applyTo(it, preset) }
+
+    /** Adds a physics sandbox page (tilt gravity, balls, a spinner and a spawn button). */
+    fun addSandboxPage() = editPages {
+        it + com.customlauncher.objects.Presets.sandboxPage(pageSizeDp.width.value, pageSizeDp.height.value)
+    }
+
     // ---- Layers panel ---------------------------------------------------------------
 
     fun renameNode(id: String, name: String) = updateWidget(id) { it.copy(name = name.trim()) }

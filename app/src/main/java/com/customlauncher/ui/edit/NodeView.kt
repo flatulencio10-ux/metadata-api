@@ -65,6 +65,12 @@ import com.customlauncher.physics.LocalPhysics
 import com.customlauncher.ui.anim.NodeAnimator
 import com.customlauncher.objects.LocalRuntimes
 import com.customlauncher.ui.objects.RuntimeDecorations
+import com.customlauncher.ui.objects.TrailBuffer
+import com.customlauncher.ui.objects.speedFx
+import com.customlauncher.widgets.objects.LocalBodyState
+import com.customlauncher.widgets.objects.LocalObjectState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.asImageBitmap
 import com.customlauncher.ui.objects.runtimeOffset
 import com.customlauncher.ui.home.WidgetFrame
 import com.customlauncher.widget.WidgetConfig
@@ -152,7 +158,11 @@ fun NodeView(
             usesBlend(node) -> Modifier.canvasTransform(node)
             else -> Modifier.nodeTransform(node)
         }
-        val rt = if (node.logic != null) LocalRuntimes.current?.get(node.id) else null
+        val rt = if (node.logic != null || node.speedVisuals?.sparksOnCollision == true) LocalRuntimes.current?.get(node.id) else null
+        val visuals = node.speedVisuals
+        val frames = if (visuals?.frames != null) rememberSpriteSheet(visuals.frames) else null
+        val trail = remember(node.id) { TrailBuffer() }
+        if (body != null && visuals?.tickPerTurn == true) TurnTicks(body)
         Box(
             Modifier
                 .offset(node.x.dp, node.y.dp)
@@ -160,12 +170,15 @@ fun NodeView(
                 .size(node.width.dp, node.height.dp)
                 .then(modifier)
                 .then(transform)
+                .then(if (body != null && visuals != null) Modifier.speedFx(body, visuals, frames, trail) else Modifier)
         ) {
             NodeAnimator(
                 rt?.stateAnimation ?: node.animation, host.isActive, Modifier.fillMaxSize(),
                 particleSource = stickerFile(node), externalTapKey = rt?.tapKey ?: 0,
             ) {
-                RuntimeDecorations(node, rt) { shown -> WidgetFrame(shown, wallpaper, host, Modifier.fillMaxSize()) }
+                CompositionLocalProvider(LocalBodyState provides body, LocalObjectState provides (rt?.state ?: node.logic?.initialState ?: "idle")) {
+                    RuntimeDecorations(node, rt) { shown -> WidgetFrame(shown, wallpaper, host, Modifier.fillMaxSize()) }
+                }
             }
         }
         return
@@ -316,6 +329,33 @@ fun NodeView(
 
     if (selected) {
         NodeToolbar(draft, env)
+    }
+}
+
+/** Loads a sprite sheet from the sticker library (zoetrope frames). */
+@Composable
+private fun rememberSpriteSheet(file: String): androidx.compose.ui.graphics.ImageBitmap? {
+    val repo = androidx.compose.ui.platform.LocalContext.current.container.stickerRepository
+    val bmp by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, file) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.customlauncher.widgets.sticker.StickerRenderer.decodeAtSize(repo.fileOf(file), 1024, 1024)?.asImageBitmap()
+        }
+    }
+    return bmp
+}
+
+/** One haptic tick per full turn while spinning slowly (fidget spinner feel). */
+@Composable
+private fun TurnTicks(body: BodyState) {
+    val haptics = LocalHapticFeedback.current
+    androidx.compose.runtime.LaunchedEffect(body) {
+        var lastTurn = kotlin.math.floor(body.spin / 360f)
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { }
+            val turn = kotlin.math.floor(body.spin / 360f)
+            if (turn != lastTurn && kotlin.math.abs(body.rpm) < 200f) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            lastTurn = turn
+        }
     }
 }
 

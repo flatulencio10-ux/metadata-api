@@ -169,6 +169,7 @@ private fun AddWidgetSheet(vm: LauncherViewModel) {
         ) {
             androidx.compose.material3.Tab(tab == 0, { tab = 0 }, text = { Text("Widgets") })
             androidx.compose.material3.Tab(tab == 1, { tab = 1 }, text = { Text("My stickers") })
+            androidx.compose.material3.Tab(tab == 2, { tab = 2 }, text = { Text("Objects") })
         }
         if (tab == 0) {
             LazyColumn(Modifier.padding(bottom = 24.dp)) {
@@ -188,6 +189,33 @@ private fun AddWidgetSheet(vm: LauncherViewModel) {
                             // Stickers need an image first.
                             if (widget.id == StickerWidget.id) vm.stickerSourceSheetOpen = true else vm.addWidget(widget.id)
                         },
+                    )
+                }
+            }
+        } else if (tab == 2) {
+            LazyColumn(Modifier.padding(bottom = 24.dp)) {
+                items(com.customlauncher.objects.Presets.all, key = { it.id }) { preset ->
+                    ListItem(
+                        headlineContent = { Text(preset.name) },
+                        supportingContent = { Text(preset.description) },
+                        colors = androidx.compose.material3.ListItemDefaults.colors(
+                            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            headlineColor = androidx.compose.ui.graphics.Color.White,
+                            supportingColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
+                        ),
+                        modifier = Modifier.clickable { vm.addWidgetSheetOpen = false; vm.addPreset(preset) },
+                    )
+                }
+                item {
+                    ListItem(
+                        headlineContent = { Text("Physics sandbox page") },
+                        supportingContent = { Text("New page with tilt gravity, balls, a spinner and a spawn button") },
+                        colors = androidx.compose.material3.ListItemDefaults.colors(
+                            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            headlineColor = MaterialTheme.colorScheme.primary,
+                            supportingColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
+                        ),
+                        modifier = Modifier.clickable { vm.addWidgetSheetOpen = false; vm.addSandboxPage() },
                     )
                 }
             }

@@ -29,6 +29,7 @@ import com.customlauncher.widget.WidgetConfig
 import com.customlauncher.widgets.sticker.AlphaMask
 import com.customlauncher.widgets.sticker.StickerWidget
 import java.io.File
+import kotlinx.coroutines.launch
 
 /** The current page's simulation, if any (nodes read their live pose from it). */
 val LocalPhysics = staticCompositionLocalOf<PhysicsWorld?> { null }
@@ -70,6 +71,15 @@ fun rememberPhysicsWorld(
             onCollision = { col ->
                 col.a?.let { latestEvents.onEvent(ObjectEvent.Collided(it, col.b, col.impulse)) }
                 col.b?.let { latestEvents.onEvent(ObjectEvent.Collided(it, col.a, col.impulse)) }
+                // Sparks for objects that ask for them.
+                if (col.impulse > 1f) listOfNotNull(col.a, col.b).forEach { id ->
+                    if (nodes.firstOrNull { it.id == id }?.speedVisuals?.sparksOnCollision == true) {
+                        val rt = c.runtimes[id]
+                        val burst = com.customlauncher.objects.Burst(10, 0xFFFFC94D, 0.5f, android.os.SystemClock.uptimeMillis(), id.hashCode() + col.impulse.toInt())
+                        rt.bursts += burst
+                        c.appScope.launch { kotlinx.coroutines.delay(1300); rt.bursts.remove(burst) }
+                    }
+                }
             },
         )
     }

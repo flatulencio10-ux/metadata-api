@@ -115,6 +115,12 @@ fun BehaviorEditor(node: Node, profile: LayoutProfile, vm: LauncherViewModel) {
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Apply a template (copies its physics, behaviours and animation)", color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelMedium)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            com.customlauncher.objects.Presets.all.filter { it.logic != null || it.physics != null }.forEach { p ->
+                DarkChip(p.name, false) { vm.applyTemplate(node.id, p) }
+            }
+        }
         Text("Behaviours of", color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelMedium)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             DarkChip("Object", scope == null) { scope = null }
@@ -368,6 +374,8 @@ private fun actionKinds(ctx: FormContext): List<Pair<String, BAction>> = listOf(
     "Push (impulse)" to BAction.Impulse(),
     "Spin (torque)" to BAction.Torque(),
     "Move to point" to BAction.MoveTo(ctx.self.x, ctx.self.y - 120f),
+    "Fly to offset (relative)" to BAction.OffsetTo(0f, -120f),
+    "Spawn an object" to BAction.Spawn("ball"),
     "Follow finger" to BAction.FollowFinger(true),
     "Follow a path" to BAction.FollowPath(emptyList()),
     "Orbit another object" to BAction.Orbit(ctx.others.firstOrNull()?.id ?: ""),
@@ -461,6 +469,19 @@ private fun ActionForm(a: BAction, ctx: FormContext, onChange: (BAction) -> Unit
                 Easing.entries.forEach { e -> FilterChip(a.easing == e, { onChange(a.copy(easing = e)) }, { Text(e.name.lowercase()) }) }
             }
         }
+        is BAction.OffsetTo -> {
+            LabeledSlider("Offset X", a.dx, -1200f..1200f, { onChange(a.copy(dx = it)) }, format = { "${it.toInt()} dp" })
+            LabeledSlider("Offset Y", a.dy, -2000f..2000f, { onChange(a.copy(dy = it)) }, format = { "${it.toInt()} dp" })
+            LabeledSlider("Duration (0 = jump)", a.durationMs.toFloat(), 0f..5000f, { onChange(a.copy(durationMs = it.toInt())) }, format = { "${it.toInt()} ms" })
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Easing.entries.forEach { e -> FilterChip(a.easing == e, { onChange(a.copy(easing = e)) }, { Text(e.name.lowercase()) }) }
+            }
+        }
+        is BAction.Spawn -> FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            com.customlauncher.objects.Presets.all.filter { it.art != null }.forEach { p ->
+                FilterChip(a.preset == p.id, { onChange(a.copy(preset = p.id)) }, { Text(p.name) })
+            }
+        }
         is BAction.FollowFinger -> com.customlauncher.ui.common.SwitchRow("Follow the finger while dragging", a.enabled, { onChange(a.copy(enabled = it)) })
         is BAction.FollowPath -> {
             DriftPathRecorder(a.path) { onChange(a.copy(path = it)) }
@@ -536,7 +557,7 @@ private fun NodeChooser(label: String, selected: String?, ctx: FormContext, allo
 
 /** Picks an image from the sticker library. */
 @Composable
-private fun StickerChooser(selected: String, onPick: (String) -> Unit) {
+internal fun StickerChooser(selected: String, onPick: (String) -> Unit) {
     val repo = LocalContext.current.container.stickerRepository
     val library by repo.library.collectAsState()
     if (library.isEmpty()) {

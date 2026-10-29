@@ -71,6 +71,8 @@ data class WidgetInstance(
     val logic: ObjectLogic? = null,
     /** Named keyframe animation clips. */
     val clips: List<KeyframeClip> = emptyList(),
+    /** Speed-reactive visuals (motion blur, zoetrope, trails…) for physics objects. */
+    val speedVisuals: SpeedVisuals? = null,
 )
 
 /** Kept for readability in new code: every placed element is a node. */

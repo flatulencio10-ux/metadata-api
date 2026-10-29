@@ -258,6 +258,29 @@ private fun PhysicsTab(n: Node, vm: LauncherViewModel, set: (Node) -> Unit) {
     com.customlauncher.ui.stickers.ToolPill(Icons.Filled.SportsBaseball, "World settings (gravity, walls…)", selected = false) {
         vm.pageSettingsOpen = true
     }
+    SpeedVisualsEditor(n.speedVisuals) { set(n.copy(speedVisuals = it)) }
+}
+
+/** Speed-reactive visuals: motion blur, zoetrope frames, stretch, trails, sparks. */
+@Composable
+private fun SpeedVisualsEditor(v: com.customlauncher.core.model.SpeedVisuals?, onChange: (com.customlauncher.core.model.SpeedVisuals?) -> Unit) {
+    Text("Speed-reactive visuals", color = InspectorAccent, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
+    DarkSwitch("Enabled", v != null) { onChange(if (it) com.customlauncher.core.model.SpeedVisuals() else null) }
+    if (v == null) return
+    DarkSwitch("Motion blur when spinning", v.motionBlur) { onChange(v.copy(motionBlur = it)) }
+    DarkSlider("Blur from", v.blurFromRpm, 10f..2000f, { onChange(v.copy(blurFromRpm = it)) }) { "${it.toInt()} rpm" }
+    DarkSlider("Zoetrope frames from", v.framesFromRpm, 50f..4000f, { onChange(v.copy(framesFromRpm = it)) }) { "${it.toInt()} rpm" }
+    Text("Zoetrope sprite sheet (frames play with the rotation)", color = Color.White)
+    com.customlauncher.ui.objects.StickerChooser(v.frames ?: "") { onChange(v.copy(frames = it)) }
+    if (v.frames != null) {
+        DarkSlider("Columns", v.frameCols.toFloat(), 1f..16f, { onChange(v.copy(frameCols = it.toInt())) }) { "${it.toInt()}" }
+        DarkSlider("Rows", v.frameRows.toFloat(), 1f..16f, { onChange(v.copy(frameRows = it.toInt())) }) { "${it.toInt()}" }
+    }
+    DarkSwitch("Stretch when thrown fast", v.stretchWhenFast) { onChange(v.copy(stretchWhenFast = it)) }
+    DarkSwitch("Motion trails", v.trails) { onChange(v.copy(trails = it)) }
+    DarkSwitch("Speed lines", v.speedLines) { onChange(v.copy(speedLines = it)) }
+    DarkSwitch("Sparks on collision", v.sparksOnCollision) { onChange(v.copy(sparksOnCollision = it)) }
+    DarkSwitch("Haptic tick per turn (slow spins)", v.tickPerTurn) { onChange(v.copy(tickPerTurn = it)) }
 }
 
 /** Tap up to 8 points inside the node's box to define a custom convex collider. */

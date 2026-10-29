@@ -37,8 +37,10 @@ class BehaviorSession(
     private val scope: CoroutineScope,
     nodes: List<Node>,
     private val physics: PhysicsWorld?,
-    /** Lets scripts and other hooks observe events (B6). */
+    /** Lets scripts and other hooks observe events. */
     private val listeners: List<(ObjectEvent) -> Unit> = emptyList(),
+    /** Adds a preset object next to [nearNodeId] (physics sandbox). */
+    private val onSpawn: (preset: String, nearNodeId: String) -> Unit = { _, _ -> },
 ) {
     private val nodes = nodes.associateBy { it.id }
     private val vars = c.variables
@@ -224,6 +226,9 @@ class BehaviorSession(
             is BAction.Torque -> if (physics?.has(nodeId) == true) physics.applyTorque(nodeId, a.rpm) else rt.effect = com.customlauncher.core.model.TapEffect.SPIN to ((rt.effect?.second ?: 0) + 1)
             is BAction.MoveTo -> if (physics?.has(nodeId) == true) physics.moveTo(nodeId, a.x, a.y)
             else animateOffset(rt, a.x - n.x, a.y - n.y, a.durationMs, a.easing)
+            is BAction.OffsetTo -> if (a.durationMs <= 0) { rt.motionJob?.cancel(); rt.dx = a.dx; rt.dy = a.dy }
+            else animateOffset(rt, a.dx, a.dy, a.durationMs, a.easing)
+            is BAction.Spawn -> onSpawn(a.preset, nodeId)
             is BAction.FollowFinger -> rt.followFinger = a.enabled
             is BAction.FollowPath -> followPath(rt, a)
             is BAction.Orbit -> orbit(n, rt, a)

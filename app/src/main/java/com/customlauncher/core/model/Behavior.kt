@@ -82,6 +82,10 @@ sealed interface BAction {
     /** Moves to (x, y) in page dp; with physics the body is teleported/pushed, otherwise animated. */
     @Serializable @SerialName("move_to") data class MoveTo(val x: Float, val y: Float, val durationMs: Int = 600, val easing: Easing = Easing.EASE) : BAction
     /** While dragging, the object follows the finger (non-physics objects). */
+    /** Animates to an offset (dp) from the object's resting place; 0 ms jumps instantly. */
+    @Serializable @SerialName("offset_to") data class OffsetTo(val dx: Float, val dy: Float, val durationMs: Int = 600, val easing: Easing = Easing.EASE) : BAction
+    /** Spawns a new object from a built-in preset next to this one (physics sandbox). */
+    @Serializable @SerialName("spawn") data class Spawn(val preset: String = "ball") : BAction
     @Serializable @SerialName("follow_finger") data class FollowFinger(val enabled: Boolean = true) : BAction
     @Serializable @SerialName("follow_path") data class FollowPath(val path: List<PathPoint>, val durationMs: Int = 2000, val loops: Int = 1) : BAction
     @Serializable @SerialName("orbit") data class Orbit(val targetId: String, val radius: Float = 80f, val rpm: Float = 20f, val durationMs: Int = 5000) : BAction

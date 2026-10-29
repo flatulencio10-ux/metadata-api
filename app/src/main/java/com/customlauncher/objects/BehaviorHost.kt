@@ -31,7 +31,11 @@ fun BehaviorHost(
     LaunchedEffect(key, physics, active) {
         if (!active || (nodes.none { it.logic != null } && extensions.isEmpty())) return@LaunchedEffect
         val hooks = ArrayList<(ObjectEvent) -> Unit>()
-        val session = BehaviorSession(c, this, nodes, physics, listOf<(ObjectEvent) -> Unit> { e -> hooks.forEach { it(e) } })
+        val session = BehaviorSession(
+            c, this, nodes, physics,
+            listeners = listOf<(ObjectEvent) -> Unit> { e -> hooks.forEach { it(e) } },
+            onSpawn = vm::spawnPreset,
+        )
         extensions.forEach { hooks += it.attach(session, nodes, physics) }
         val listener: (ObjectEvent) -> Unit = session::onEvent
         vm.objectEventListener = listener

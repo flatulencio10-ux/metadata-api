@@ -48,6 +48,8 @@ object BehaviorLabels {
         is BAction.Impulse -> "push (${a.dx.toInt()}, ${a.dy.toInt()})"
         is BAction.Torque -> "spin ${a.rpm.toInt()} rpm"
         is BAction.MoveTo -> "move to (${a.x.toInt()}, ${a.y.toInt()})"
+        is BAction.OffsetTo -> "fly to offset (${a.dx.toInt()}, ${a.dy.toInt()})"
+        is BAction.Spawn -> "spawn a ${a.preset}"
         is BAction.FollowFinger -> if (a.enabled) "follow finger" else "stop following finger"
         is BAction.FollowPath -> "follow path"
         is BAction.Orbit -> "orbit another object"
