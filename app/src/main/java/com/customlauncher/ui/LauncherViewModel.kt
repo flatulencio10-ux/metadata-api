@@ -116,8 +116,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun closeOverlays(): Boolean {
         val anyOpen = drawerOpen || searchOpen || gestureCanvasOpen || fullscreenWidgetId != null ||
-            configuringWidgetId != null || addWidgetSheetOpen || pageSettingsOpen
-        drawerOpen = false; searchOpen = false; gestureCanvasOpen = false
+            configuringWidgetId != null || addWidgetSheetOpen || pageSettingsOpen || startMenuOpen || contextMenuAt != null
+        drawerOpen = false; searchOpen = false; gestureCanvasOpen = false; startMenuOpen = false; contextMenuAt = null
         fullscreenWidgetId = null; configuringWidgetId = null; addWidgetSheetOpen = false; pageSettingsOpen = false
         return anyOpen
     }
@@ -273,6 +273,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             NodeToolbarAction.FLIP_H -> updateWidget(node.id) { it.copy(flipX = !it.flipX) }
             NodeToolbarAction.FLIP_V -> updateWidget(node.id) { it.copy(flipY = !it.flipY) }
             NodeToolbarAction.DUPLICATE -> duplicateWidget(node.id)
+            NodeToolbarAction.COPY -> copyNode(node.id)
             NodeToolbarAction.FRONT -> bringToFront(node.id)
             NodeToolbarAction.BACK -> sendToBack(node.id)
             NodeToolbarAction.LOCK -> updateWidget(node.id) { it.copy(locked = !it.locked) }
@@ -482,6 +483,88 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun updateActivity(transform: (ActivityProfile) -> ActivityProfile) = edit { it.updateCurrentActivity(transform) }
+
+    // ---- Desktop: start menu, context menu, clipboard, windows, taskbar ---------------
+
+    var startMenuOpen by mutableStateOf(false)
+
+    /** Page area origin in root pixels (to place pasted nodes under the finger). */
+    var pageOriginPx by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
+
+    /** Tab the add sheet opens on (0 widgets, 1 stickers, 2 objects). */
+    var addWidgetSheetTab by mutableStateOf(0)
+
+    /** Root position of the home long-press context menu (null = closed). */
+    var contextMenuAt by mutableStateOf<androidx.compose.ui.geometry.Offset?>(null)
+
+    /** Copied nodes (with their group), pasteable on any page. */
+    var nodeClipboard by mutableStateOf<List<Node>>(emptyList())
+
+    /** When true the add-widget sheet opens the widget in a floating window. */
+    var addWidgetAsWindow by mutableStateOf(false)
+
+    /** Long-press on the home screen: on an object → Edit Mode with it selected; elsewhere → context menu. */
+    fun onHomeLongPress(rootPosition: androidx.compose.ui.geometry.Offset) {
+        if (editMode) return
+        val pageWidgets = profile.value?.currentActivity?.pages?.getOrNull(currentPage)?.widgets.orEmpty()
+        if (pageWidgets.any { widgetBounds[it.id]?.contains(rootPosition) == true }) enterEditMode(rootPosition)
+        else contextMenuAt = rootPosition
+    }
+
+    fun copyNode(id: String) {
+        val act = profile.value?.currentActivity ?: return
+        val all = act.pages.flatMap { it.widgets } + act.pinned
+        val node = all.firstOrNull { it.id == id } ?: return
+        nodeClipboard = node.groupId?.let { g -> all.filter { it.groupId == g } } ?: listOf(node)
+        c.bus.send(com.customlauncher.actions.UiCommand.Message(if (nodeClipboard.size > 1) "Copied ${nodeClipboard.size} objects" else "Copied — paste from the long-press menu on any page"))
+    }
+
+    /** Pastes the clipboard on the current page at [atDp] (page coordinates), or offset from the originals. */
+    fun pasteNodes(atDp: androidx.compose.ui.geometry.Offset? = null) {
+        val clip = nodeClipboard.ifEmpty { return }
+        val page = profile.value?.currentActivity?.pages?.getOrNull(currentPage) ?: return
+        val x = atDp?.x ?: (clip.minOf { it.x } + 24f)
+        val y = atDp?.y ?: (clip.minOf { it.y } + 24f)
+        val pasted = com.customlauncher.desktop.NodeClipboard.paste(clip, x, y, page.widgets.maxOfOrNull { it.z } ?: 0)
+        editPage(currentPage) { it.copy(widgets = it.widgets + pasted) }
+        selectedWidgetId = pasted.last().id
+    }
+
+    fun openWidgetWindow(type: String) {
+        val def = WidgetRegistry.find(type) ?: return
+        val area = pageSizeDp
+        updateActivity { act ->
+            val base = com.customlauncher.desktop.WindowMath.cascade(act.windows, def.defaultSize.width.value.coerceAtLeast(220f), def.defaultSize.height.value.coerceAtLeast(160f) + com.customlauncher.desktop.WindowMath.TITLE_H, area.width.value, area.height.value)
+            act.copy(windows = act.windows + base.copy(widget = WidgetInstance(type = type, width = base.width, height = base.height)))
+        }
+        def.onAdded(getApplication(), WidgetConfig())
+    }
+
+    fun updateWindow(id: String, transform: (com.customlauncher.core.model.FloatingWindow) -> com.customlauncher.core.model.FloatingWindow) =
+        updateActivity { act -> act.copy(windows = act.windows.map { if (it.id == id) transform(it) else it }) }
+
+    fun closeWindow(id: String) = updateActivity { act -> act.copy(windows = act.windows.filterNot { it.id == id }) }
+
+    /** Pins / unpins an app on every taskbar of the current activity. */
+    fun toggleTaskbarPin(component: String) = updateActivity { act ->
+        act.copy(panels = act.panels.map { p ->
+            p.copy(items = p.items.map { item ->
+                if (item is PanelItem.Taskbar) item.copy(pinned = if (component in item.pinned) item.pinned - component else item.pinned + component) else item
+            })
+        })
+    }
+
+    /** Opens an app in a freeform window when supported, else normally. */
+    fun openAppInWindow(component: String) {
+        val ctx = getApplication<android.app.Application>()
+        val dm = ctx.resources.displayMetrics
+        val w = (dm.widthPixels * 0.8f).toInt()
+        val h = (dm.heightPixels * 0.55f).toInt()
+        val left = (dm.widthPixels - w) / 2
+        val top = (dm.heightPixels - h) / 3
+        val windowed = com.customlauncher.desktop.FreeformLauncher.launch(ctx, component, android.graphics.Rect(left, top, left + w, top + h))
+        if (!windowed) c.bus.send(com.customlauncher.actions.UiCommand.Message("Free-form windows aren't enabled on this device — opened normally"))
+    }
 
     // ---- Drawer customisation ------------------------------------------------------
 

@@ -14,12 +14,22 @@ class MediaNotificationListener : NotificationListenerService() {
 
     override fun onListenerConnected() {
         container.mediaRepository.onListenerConnected()
+        updateCount()
+    }
+
+    override fun onNotificationRemoved(sbn: android.service.notification.StatusBarNotification?) = updateCount()
+
+    /** Only the number of clearable notifications is kept (taskbar tray badge). */
+    private fun updateCount() {
+        val count = runCatching { activeNotifications.count { it.isClearable && !it.isOngoing } }.getOrDefault(0)
+        container.trayState.setNotificationCount(count)
     }
 
     /** Feeds "notification received" behaviour triggers (only the package name is used). */
     override fun onNotificationPosted(sbn: android.service.notification.StatusBarNotification?) {
         val pkg = sbn?.packageName ?: return
         if (pkg != packageName) container.triggerSources.notificationPosted(pkg)
+        updateCount()
     }
 
     companion object {

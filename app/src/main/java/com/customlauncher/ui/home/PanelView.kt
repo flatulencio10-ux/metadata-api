@@ -147,6 +147,11 @@ fun PanelView(
 private fun RowScope.RowItem(item: PanelItem, cross: Dp, wallpaper: Wallpaper, active: Boolean, onAction: (Action) -> Unit, onOpenWidget: (String) -> Unit, onUpdateConfig: (String, WidgetConfig) -> Unit) {
     when (item) {
         is PanelItem.Spacer -> if (item.flexible) Spacer(Modifier.weight(1f)) else Spacer(Modifier.width(item.sizeDp.dp))
+        is PanelItem.Taskbar -> Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.CenterStart) {
+            com.customlauncher.ui.desktop.TaskbarItem(item, cross, horizontal = true, onAction = onAction)
+        }
+        is PanelItem.SystemTray -> com.customlauncher.ui.desktop.SystemTrayItem(item, horizontal = true)
+        is PanelItem.StartButton -> Box(Modifier.size(cross), contentAlignment = Alignment.Center) { com.customlauncher.ui.desktop.StartButtonItem(cross * 0.8f) }
         is PanelItem.Widget -> Box(Modifier.width(item.lengthDp.dp).fillMaxHeight()) {
             PanelWidget(item, wallpaper, active, onAction, onOpenWidget, onUpdateConfig)
         }
@@ -158,6 +163,11 @@ private fun RowScope.RowItem(item: PanelItem, cross: Dp, wallpaper: Wallpaper, a
 private fun ColumnScope.ColumnItem(item: PanelItem, cross: Dp, wallpaper: Wallpaper, active: Boolean, onAction: (Action) -> Unit, onOpenWidget: (String) -> Unit, onUpdateConfig: (String, WidgetConfig) -> Unit) {
     when (item) {
         is PanelItem.Spacer -> if (item.flexible) Spacer(Modifier.weight(1f)) else Spacer(Modifier.height(item.sizeDp.dp))
+        is PanelItem.Taskbar -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+            com.customlauncher.ui.desktop.TaskbarItem(item, cross, horizontal = false, onAction = onAction)
+        }
+        is PanelItem.SystemTray -> com.customlauncher.ui.desktop.SystemTrayItem(item, horizontal = false)
+        is PanelItem.StartButton -> Box(Modifier.size(cross), contentAlignment = Alignment.Center) { com.customlauncher.ui.desktop.StartButtonItem(cross * 0.8f) }
         is PanelItem.Widget -> Box(Modifier.height(item.lengthDp.dp).fillMaxWidth()) {
             PanelWidget(item, wallpaper, active, onAction, onOpenWidget, onUpdateConfig)
         }

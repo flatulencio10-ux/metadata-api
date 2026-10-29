@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.FlipToBack
 import androidx.compose.material.icons.filled.FlipToFront
 import androidx.compose.material.icons.filled.GridOff
 import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
@@ -105,6 +106,7 @@ fun EditOverlay(profile: LayoutProfile, vm: LauncherViewModel, pagerState: Pager
                 }
                 ToolbarButton(Icons.Filled.Wallpaper, "This page") { vm.pageSettingsOpen = true }
                 ToolbarButton(Icons.Filled.Layers, "Layers") { vm.layersPanelOpen = true }
+                if (vm.nodeClipboard.isNotEmpty()) ToolbarButton(Icons.Filled.ContentPaste, "Paste") { vm.pasteNodes() }
                 val snap = profile.grid.snapEnabled
                 ToolbarButton(if (snap) Icons.Filled.GridOn else Icons.Filled.GridOff, if (snap) "Snap ${profile.grid.snapDp.toInt()}dp" else "Free") {
                     // Cycle: fine snap 4dp → 8dp → 16dp → free placement.
@@ -165,8 +167,8 @@ private fun ToolbarButton(icon: ImageVector, label: String, onClick: () -> Unit)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddWidgetSheet(vm: LauncherViewModel) {
-    var tab by remember { mutableStateOf(0) }
-    ModalBottomSheet(onDismissRequest = { vm.addWidgetSheetOpen = false }, containerColor = androidx.compose.ui.graphics.Color(0xFF16181C)) {
+    var tab by remember { mutableStateOf(vm.addWidgetSheetTab) }
+    ModalBottomSheet(onDismissRequest = { vm.addWidgetSheetOpen = false; vm.addWidgetAsWindow = false }, containerColor = androidx.compose.ui.graphics.Color(0xFF16181C)) {
         androidx.compose.material3.TabRow(
             selectedTabIndex = tab,
             containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -191,8 +193,12 @@ private fun AddWidgetSheet(vm: LauncherViewModel) {
                         ),
                         modifier = Modifier.clickable {
                             vm.addWidgetSheetOpen = false
-                            // Stickers need an image first.
-                            if (widget.id == StickerWidget.id) vm.stickerSourceSheetOpen = true else vm.addWidget(widget.id)
+                            when {
+                                // Stickers need an image first.
+                                widget.id == StickerWidget.id -> vm.stickerSourceSheetOpen = true
+                                vm.addWidgetAsWindow -> { vm.addWidgetAsWindow = false; vm.openWidgetWindow(widget.id); vm.exitEditMode() }
+                                else -> vm.addWidget(widget.id)
+                            }
                         },
                     )
                 }

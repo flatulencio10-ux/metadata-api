@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flip
@@ -85,7 +86,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /** Quick actions on the floating toolbar above a selected node. */
-enum class NodeToolbarAction { FLIP_H, FLIP_V, DUPLICATE, FRONT, BACK, LOCK, LAYER, PIN, EDIT, DELETE }
+enum class NodeToolbarAction { FLIP_H, FLIP_V, DUPLICATE, COPY, FRONT, BACK, LOCK, LAYER, PIN, EDIT, DELETE }
 
 /** Everything a node needs from its page while being edited. */
 class NodeEditEnv(
@@ -468,6 +469,7 @@ private fun NodeToolbar(node: Node, env: NodeEditEnv) {
             ToolButton(Icons.Filled.Flip, "Flip horizontally") { env.onToolbar(NodeToolbarAction.FLIP_H, node) }
             ToolButton(Icons.Filled.Flip, "Flip vertically", rotated = true) { env.onToolbar(NodeToolbarAction.FLIP_V, node) }
             ToolButton(Icons.Filled.ContentCopy, "Duplicate") { env.onToolbar(NodeToolbarAction.DUPLICATE, node) }
+            ToolButton(Icons.Filled.ContentPaste, "Copy (paste on any page)") { env.onToolbar(NodeToolbarAction.COPY, node) }
             ToolButton(Icons.Filled.FlipToFront, "Bring to front") { env.onToolbar(NodeToolbarAction.FRONT, node) }
             ToolButton(Icons.Filled.FlipToBack, "Send to back") { env.onToolbar(NodeToolbarAction.BACK, node) }
             ToolButton(

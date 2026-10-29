@@ -88,6 +88,14 @@ fun PanelsScreen(s: SettingsScope) {
                         editingId = panel.id
                     }) { Text("Add ${edge.name.lowercase()}") }
                 }
+                // One tap to a desktop: start button, taskbar and tray along the bottom.
+                OutlinedButton(onClick = {
+                    val panel = Panel(
+                        edge = Edge.BOTTOM, thicknessDp = 56f, floating = false, marginDp = 0f, cornerRadiusDp = 0f, backgroundColor = 0xD9101218,
+                        items = listOf(PanelItem.StartButton(), PanelItem.Spacer(sizeDp = 6f), PanelItem.Taskbar(), PanelItem.SystemTray()),
+                    )
+                    editPanels { it + panel }
+                }) { Text("Add desktop taskbar") }
             }
         }
     }
@@ -145,6 +153,9 @@ private fun PanelEditor(panel: Panel, s: SettingsScope, onDismiss: () -> Unit, o
                                     is PanelItem.Widget -> "Widget: " + (WidgetRegistry.find(item.widget.type)?.name ?: item.widget.type)
                                     is PanelItem.ActionButton -> "Button: " + ActionCatalog.label(item.action, s.profile, catalog::label)
                                     is PanelItem.Spacer -> if (item.flexible) "Flexible spacer" else "Spacer ${item.sizeDp.toInt()} dp"
+                                    is PanelItem.Taskbar -> "Taskbar (${item.pinned.size} pinned${if (item.showRecents) " + recent" else ""})"
+                                    is PanelItem.SystemTray -> "System tray"
+                                    is PanelItem.StartButton -> "Start menu button"
                                 },
                                 Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -164,6 +175,9 @@ private fun PanelEditor(panel: Panel, s: SettingsScope, onDismiss: () -> Unit, o
                     OutlinedButton(onClick = { adding = "action" }) { Text("+ Button") }
                     OutlinedButton(onClick = { onChange(panel.copy(items = panel.items + PanelItem.Spacer(sizeDp = 16f))) }) { Text("+ Gap") }
                     OutlinedButton(onClick = { onChange(panel.copy(items = panel.items + PanelItem.Spacer(flexible = true))) }) { Text("+ Flexible") }
+                    OutlinedButton(onClick = { onChange(panel.copy(items = panel.items + PanelItem.StartButton())) }) { Text("+ Start") }
+                    OutlinedButton(onClick = { onChange(panel.copy(items = panel.items + PanelItem.Taskbar())) }) { Text("+ Taskbar") }
+                    OutlinedButton(onClick = { onChange(panel.copy(items = panel.items + PanelItem.SystemTray())) }) { Text("+ Tray") }
                 }
             }
         },

@@ -194,3 +194,43 @@ fun BackupScreen(s: SettingsScope) {
         )
     }
 }
+
+/** Battery safeguards, physics budget and the on-screen performance overlay. */
+@Composable
+fun PerformanceSettingsScreen(s: SettingsScope) {
+    val p = s.profile.performance
+    fun set(t: (com.customlauncher.core.model.PerformanceConfig) -> com.customlauncher.core.model.PerformanceConfig) = s.edit { it.copy(performance = t(it.performance)) }
+    val c = androidx.compose.ui.platform.LocalContext.current.container
+    SettingsPage {
+        item { SectionTitle("Battery") }
+        item {
+            SwitchRow(
+                "Keep animations & physics in battery saver", p.ignoreBatterySaver, { on -> set { it.copy(ignoreBatterySaver = on) } },
+                supporting = "Normally everything pauses in battery saver or below 15%. Physics and scripts always pause when the screen is off or another app is open.",
+            )
+        }
+        item { SectionTitle("Physics") }
+        item {
+            com.customlauncher.ui.common.LabeledSlider(
+                "Max dynamic objects per page", p.maxDynamicBodies.toFloat(), 5f..100f,
+                { v -> set { it.copy(maxDynamicBodies = v.toInt()) } },
+                format = { "${it.toInt()}" },
+            )
+        }
+        item { SectionTitle("Diagnostics") }
+        item {
+            SwitchRow(
+                "Performance overlay", p.showOverlay, { on -> set { it.copy(showOverlay = on) } },
+                supporting = "Shows FPS, active objects, physics bodies and physics step time on the home screen.",
+            )
+        }
+        item { SectionTitle("Desktop") }
+        item {
+            val granted = remember { c.recentApps.hasPermission() }
+            SwitchRow(
+                "Usage access (taskbar recent apps)", granted, { _ -> runCatching { c.app.startActivity(c.recentApps.settingsIntent()) } },
+                supporting = if (granted) "Granted." else "Opens system settings so the taskbar can list recently used apps.",
+            )
+        }
+    }
+}

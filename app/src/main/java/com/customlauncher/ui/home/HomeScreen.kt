@@ -1,5 +1,8 @@
 package com.customlauncher.ui.home
 
+import com.customlauncher.ui.desktop.StartMenu
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,7 +58,7 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
     val callbacks = remember(vm) {
         GestureCallbacks(
             onTrigger = { trigger -> vm.run(currentProfile.gestures.actionFor(trigger)) },
-            onLongPress = { pos -> if (!vm.editMode) vm.enterEditMode(pos) },
+            onLongPress = { pos -> vm.onHomeLongPress(pos) },
             onTap = { if (vm.editMode) vm.selectedWidgetId = null },
         )
     }
@@ -69,6 +72,7 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
     val reserved = reservedSpace(visiblePanels)
     val overlayOpen = vm.drawerOpen || vm.searchOpen || vm.fullscreenWidgetId != null
 
+    CompositionLocalProvider(com.customlauncher.ui.desktop.LocalDesktop provides vm) {
     Box(
         Modifier
             .fillMaxSize()
@@ -108,6 +112,7 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
             ) {
                 val pageSize = DpSize(maxWidth, maxHeight)
                 LaunchedEffect(pageSize) { vm.pageSizeDp = pageSize }
+                Box(Modifier.fillMaxSize().onGloballyPositioned { vm.pageOriginPx = it.positionInRoot() })
 
                 HorizontalPager(
                     state = pagerState,
@@ -153,6 +158,11 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
                     vm = vm,
                     pinned = true,
                 )
+
+                // Desktop-style widget windows float over the pages (hidden while editing).
+                if (!vm.editMode && activity.windows.isNotEmpty()) {
+                    com.customlauncher.ui.desktop.FloatingWindows(activity.windows, activity.wallpaper, pageSize, resumed && !overlayOpen, vm)
+                }
 
                 if (activity.pages.size > 1) {
                     PageIndicator(
@@ -237,7 +247,17 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
                 )
                 if (vm.editMode) GuideLines(vm.guides)
             }
+
+            StartMenu(vm, reserved.getValue(Edge.BOTTOM))
+            if (profile.performance.showOverlay) {
+                com.customlauncher.ui.desktop.PerformanceOverlay(
+                    activity.pages.getOrNull(pagerState.currentPage)?.widgets.orEmpty() + activity.pinned,
+                    Modifier.align(Alignment.TopEnd).padding(top = reserved.getValue(Edge.TOP) + 4.dp, end = reserved.getValue(Edge.RIGHT) + 4.dp),
+                )
+            }
         }
+        com.customlauncher.ui.desktop.HomeContextMenu(vm)
+    }
     }
 }
 

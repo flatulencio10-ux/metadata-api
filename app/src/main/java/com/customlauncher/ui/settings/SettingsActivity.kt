@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -66,6 +67,7 @@ enum class SettingsRoute(val title: String, val icon: ImageVector, val summary: 
     PANELS("Panels", Icons.Filled.Dashboard, "Docks and bars on any screen edge"),
     DRAWER("App drawer", Icons.Filled.Apps, "Layout, sorting, hidden apps"),
     SEARCH("Search", Icons.Filled.Search, "Providers and web search engine"),
+    PERFORMANCE("Performance", Icons.Filled.Speed, "Battery saver, physics limits, performance overlay"),
     BACKUP("Backup & profiles", Icons.Filled.Save, "Export / import the whole setup as JSON"),
     PERMISSIONS("Permissions", Icons.Filled.Security, "Default home, accessibility, notifications"),
 }
@@ -119,6 +121,7 @@ fun SettingsRoot(onExit: () -> Unit) {
                         SettingsRoute.PANELS -> PanelsScreen(scope)
                         SettingsRoute.DRAWER -> DrawerSettingsScreen(scope)
                         SettingsRoute.SEARCH -> SearchSettingsScreen(scope)
+                        SettingsRoute.PERFORMANCE -> PerformanceSettingsScreen(scope)
                         SettingsRoute.BACKUP -> BackupScreen(scope)
                         SettingsRoute.PERMISSIONS -> com.customlauncher.ui.onboarding.OnboardingScreen(onFinish = { route = null })
                     }

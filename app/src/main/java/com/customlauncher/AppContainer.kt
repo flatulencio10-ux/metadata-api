@@ -63,6 +63,8 @@ class AppContainer(context: Context) {
     val soundAndHaptics by lazy { SoundAndHaptics(app) }
     val runtimes = RuntimeRegistry()
     val scriptConsole = com.customlauncher.scripting.ScriptConsole()
+    val recentApps by lazy { com.customlauncher.desktop.RecentApps(app, appScope) }
+    val trayState by lazy { com.customlauncher.desktop.TrayState(app) }
     val variables by lazy { VariablePersistence.load(app, appScope) }
     val autoSwitcher by lazy { ActivityAutoSwitcher(app, profileRepository, systemStats, appScope) }
     val actionExecutor by lazy {

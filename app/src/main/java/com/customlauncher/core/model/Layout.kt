@@ -140,6 +140,32 @@ sealed interface PanelItem {
     @Serializable @SerialName("action")
     data class ActionButton(override val id: String = newId(), val label: String, val action: Action) : PanelItem
 
+    /**
+     * Desktop taskbar: pinned apps, recently used apps (needs usage access) and minimized
+     * widget windows. Takes the remaining space along the panel.
+     */
+    @Serializable @SerialName("taskbar")
+    data class Taskbar(
+        override val id: String = newId(),
+        val pinned: List<String> = emptyList(),
+        val showRecents: Boolean = true,
+        val maxRecents: Int = 6,
+    ) : PanelItem
+
+    /** Clock, battery, Wi-Fi and notification count. */
+    @Serializable @SerialName("tray")
+    data class SystemTray(
+        override val id: String = newId(),
+        val clock: Boolean = true,
+        val battery: Boolean = true,
+        val wifi: Boolean = true,
+        val notifications: Boolean = true,
+    ) : PanelItem
+
+    /** Opens the start menu (categories + search). */
+    @Serializable @SerialName("start")
+    data class StartButton(override val id: String = newId()) : PanelItem
+
     /** Fixed gap, or flexible (fills remaining space) when [flexible] is true. */
     @Serializable @SerialName("spacer")
     data class Spacer(override val id: String = newId(), val sizeDp: Float = 16f, val flexible: Boolean = false) : PanelItem
@@ -176,6 +202,21 @@ data class ActivityProfile(
     val defaultPage: Int = 0,
     /** Nodes pinned across all pages: fixed on screen while pages swipe underneath. */
     val pinned: List<WidgetInstance> = emptyList(),
+    /** Widgets floating in desktop-style windows above the pages. */
+    val windows: List<FloatingWindow> = emptyList(),
+)
+
+/** A widget in a movable, resizable window; position and size in dp of the content area. */
+@Serializable
+data class FloatingWindow(
+    val id: String = newId(),
+    val widget: WidgetInstance,
+    val x: Float = 24f,
+    val y: Float = 80f,
+    val width: Float = 300f,
+    val height: Float = 260f,
+    val minimized: Boolean = false,
+    val maximized: Boolean = false,
 )
 
 /** Automatic activity switching. Rules are checked top to bottom; the first match wins. */
@@ -269,6 +310,7 @@ data class LayoutProfile(
     fun findWidget(instanceId: String): WidgetInstance? =
         activities.asSequence().flatMap { it.pages }.flatMap { it.widgets }.firstOrNull { it.id == instanceId }
             ?: activities.asSequence().flatMap { it.pinned }.firstOrNull { it.id == instanceId }
+            ?: activities.asSequence().flatMap { it.windows }.map { it.widget }.firstOrNull { it.id == instanceId }
             ?: activities.asSequence().flatMap { it.panels }.flatMap { it.items }
                 .filterIsInstance<PanelItem.Widget>().map { it.widget }.firstOrNull { it.id == instanceId }
 
@@ -285,6 +327,7 @@ data class LayoutProfile(
                     })
                 },
                 pinned = act.pinned.map { if (it.id == instanceId) transform(it) else it },
+                windows = act.windows.map { if (it.widget.id == instanceId) it.copy(widget = transform(it.widget)) else it },
             )
         })
 
@@ -297,6 +340,7 @@ data class LayoutProfile(
                     panel.copy(items = panel.items.filterNot { it is PanelItem.Widget && it.widget.id == instanceId })
                 },
                 pinned = act.pinned.filterNot { it.id == instanceId },
+                windows = act.windows.filterNot { it.widget.id == instanceId },
             )
         })
 

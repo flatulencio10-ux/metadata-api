@@ -89,12 +89,13 @@ fun LauncherRoot(vm: LauncherViewModel) {
     // Entrance animations set to "launcher opened" play whenever the home screen resumes.
     LaunchedEffect(resumed) {
         if (resumed) context.container.animationSignals.emit(com.customlauncher.core.model.EntranceTrigger.LAUNCHER_OPENED)
+        if (resumed) context.container.recentApps.refresh()
     }
     LaunchedEffect(vm.homePressTick) {
         if (vm.homePressTick > 0) pagerState.animateScrollToPage(activity.defaultPage.coerceIn(0, activity.pages.lastIndex))
     }
 
-    BackHandler(enabled = vm.editMode || vm.drawerOpen || vm.searchOpen || vm.gestureCanvasOpen || vm.fullscreenWidgetId != null) {
+    BackHandler(enabled = vm.editMode || vm.startMenuOpen || vm.contextMenuAt != null || vm.drawerOpen || vm.searchOpen || vm.gestureCanvasOpen || vm.fullscreenWidgetId != null) {
         if (!vm.closeOverlays()) vm.exitEditMode()
     }
 
