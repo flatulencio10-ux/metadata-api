@@ -1,7 +1,23 @@
 package com.customlauncher.ui.home
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -39,18 +55,90 @@ fun PageView(
     vm: LauncherViewModel,
 ) {
     val wallpaper = page.wallpaper ?: activityWallpaper
+    val effectiveGrid = page.grid ?: grid
+    if (page.infinite) {
+        InfiniteCanvas(vm.viewport(page.id)) { zoom ->
+            if (editMode && effectiveGrid.showGrid) GridDots(effectiveGrid.snapDp)
+            NodeList(
+                nodes = page.widgets.filter { it.layer == NodeLayer.NORMAL },
+                allOnPage = page.widgets,
+                wallpaper = wallpaper,
+                isActive = isActive,
+                editMode = editMode,
+                grid = effectiveGrid,
+                vm = vm,
+                pinned = false,
+                canvasScale = zoom,
+            )
+        }
+        return
+    }
     Box(Modifier.fillMaxSize()) {
-        if (editMode && grid.showGrid && grid.snapEnabled) GridDots(grid.snapDp)
+        if (editMode && effectiveGrid.showGrid && effectiveGrid.snapEnabled) GridDots(effectiveGrid.snapDp)
         NodeList(
             nodes = page.widgets.filter { it.layer == NodeLayer.NORMAL },
             allOnPage = page.widgets,
             wallpaper = wallpaper,
             isActive = isActive,
             editMode = editMode,
-            grid = grid,
+            grid = effectiveGrid,
             vm = vm,
             pinned = false,
         )
+    }
+}
+
+/** Pan/zoom state of an infinite canvas page (kept per page while the launcher runs). */
+class CanvasViewport {
+    var offset by mutableStateOf(Offset.Zero)
+    var zoom by mutableFloatStateOf(1f)
+    val isHome get() = offset == Offset.Zero && zoom == 1f
+}
+
+/**
+ * Desktop-like page: one finger pans, two fingers pinch-zoom around the fingers. Nodes keep
+ * their dp coordinates in "canvas space"; Edit Mode drags are divided by the zoom.
+ */
+@Composable
+private fun InfiniteCanvas(vp: CanvasViewport, content: @Composable (zoom: Float) -> Unit) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .clipToBounds()
+            .pointerInput(vp) {
+                detectTransformGestures { centroid, pan, zoom, _ ->
+                    val newZoom = (vp.zoom * zoom).coerceIn(0.25f, 4f)
+                    // Keep the content point under the fingers fixed while zooming.
+                    val contentPoint = (centroid - vp.offset) / vp.zoom
+                    vp.offset = centroid - contentPoint * newZoom + pan
+                    vp.zoom = newZoom
+                }
+            }
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    translationX = vp.offset.x
+                    translationY = vp.offset.y
+                    scaleX = vp.zoom
+                    scaleY = vp.zoom
+                    transformOrigin = TransformOrigin(0f, 0f)
+                }
+        ) { content(vp.zoom) }
+        if (!vp.isHome) {
+            Text(
+                "⌂  Recenter",
+                color = Color.White,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                    .clickable { vp.offset = Offset.Zero; vp.zoom = 1f }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
     }
 }
 
@@ -68,6 +156,7 @@ fun NodeList(
     grid: GridConfig,
     vm: LauncherViewModel,
     pinned: Boolean,
+    canvasScale: Float = 1f,
 ) {
     nodes.sortedBy { it.z }.forEach { stored ->
         key(stored.id) {
@@ -87,7 +176,7 @@ fun NodeList(
             val env = if (!editMode) null else NodeEditEnv(
                 pageSize = vm.pageSizeDp,
                 gridEnabled = grid.snapEnabled,
-                gridSnap = vm::snap,
+                gridSnap = { v -> if (grid.snapDp > 0f) kotlin.math.round(v / grid.snapDp) * grid.snapDp else v },
                 guidesEnabled = grid.guides,
                 others = allOnPage.filter { it.id != instance.id && !it.hidden }.map { NodeBounds.of(it) },
                 onSelect = { vm.selectedWidgetId = it },
@@ -95,6 +184,7 @@ fun NodeList(
                 onGuides = { vm.guides = it },
                 onToolbar = vm::onNodeToolbar,
                 pinned = pinned,
+                canvasScale = canvasScale,
             )
             NodeView(
                 node = instance,

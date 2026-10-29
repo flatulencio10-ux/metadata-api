@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.FlipToBack
 import androidx.compose.material.icons.filled.FlipToFront
 import androidx.compose.material.icons.filled.GridOff
 import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Wallpaper
@@ -103,6 +104,7 @@ fun EditOverlay(profile: LayoutProfile, vm: LauncherViewModel, pagerState: Pager
                     scope.launch { pagerState.animateScrollToPage(profile.currentActivity.pages.size) }
                 }
                 ToolbarButton(Icons.Filled.Wallpaper, "This page") { vm.pageSettingsOpen = true }
+                ToolbarButton(Icons.Filled.Layers, "Layers") { vm.layersPanelOpen = true }
                 val snap = profile.grid.snapEnabled
                 ToolbarButton(if (snap) Icons.Filled.GridOn else Icons.Filled.GridOff, if (snap) "Snap ${profile.grid.snapDp.toInt()}dp" else "Free") {
                     // Cycle: fine snap 4dp → 8dp → 16dp → free placement.
@@ -141,6 +143,7 @@ fun EditOverlay(profile: LayoutProfile, vm: LauncherViewModel, pagerState: Pager
 
     if (vm.addWidgetSheetOpen) AddWidgetSheet(vm)
     if (vm.pageSettingsOpen) PageSettingsDialog(profile, vm)
+    if (vm.layersPanelOpen) LayersPanel(profile, vm)
 }
 
 @Composable
@@ -257,6 +260,18 @@ private fun PageSettingsDialog(profile: LayoutProfile, vm: LauncherViewModel) {
         title = { Text("Page ${index + 1} of $pageCount") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                com.customlauncher.ui.common.SwitchRow(
+                    "Infinite canvas", page.infinite, { on -> vm.updatePage(index) { it.copy(infinite = on) } },
+                    supporting = "Pan with one finger, pinch to zoom. Use the page dots to change pages.",
+                )
+                com.customlauncher.ui.common.SwitchRow(
+                    "Own grid overlay", page.grid != null,
+                    { on -> vm.updatePage(index) { it.copy(grid = if (on) (profile.grid.copy(snapEnabled = true, showGrid = true)) else null) } },
+                    supporting = "Optional snapping just for this page. Stickers always place freely.",
+                )
+                page.grid?.let { g ->
+                    LabeledSlider("Grid step", g.snapDp, 4f..48f, { v -> vm.updatePage(index) { it.copy(grid = g.copy(snapDp = v)) } }, format = { "${it.toInt()} dp" })
+                }
                 Text("Transition", style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     PageTransition.entries.forEach { t ->

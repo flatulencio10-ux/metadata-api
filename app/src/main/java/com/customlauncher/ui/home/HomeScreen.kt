@@ -20,6 +20,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.clickable
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -46,6 +49,7 @@ import kotlin.math.abs
 fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerState, resumed: Boolean) {
     val activity = profile.currentActivity
     val panels = activity.panels
+    val scope = rememberCoroutineScope()
     val currentProfile by rememberUpdatedState(profile)
 
     val callbacks = remember(vm) {
@@ -108,7 +112,10 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
-                    userScrollEnabled = activity.pages.size > 1,
+                    // On an infinite canvas page one-finger drags pan the canvas instead of paging;
+                    // use the page dots to change pages.
+                    userScrollEnabled = activity.pages.size > 1 &&
+                        activity.pages.getOrNull(pagerState.currentPage)?.infinite != true,
                     beyondViewportPageCount = 1,
                     key = { index -> activity.pages.getOrNull(index)?.id ?: index },
                 ) { index ->
@@ -151,6 +158,7 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
                     PageIndicator(
                         count = activity.pages.size,
                         current = pagerState.currentPage,
+                        onSelect = { scope.launch { pagerState.animateScrollToPage(it) } },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .padding(bottom = 6.dp),
@@ -234,11 +242,13 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
 }
 
 @Composable
-private fun PageIndicator(count: Int, current: Int, modifier: Modifier = Modifier) {
+private fun PageIndicator(count: Int, current: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         repeat(count) { i ->
             Box(
                 Modifier
+                    .clickable { onSelect(i) }
+                    .padding(4.dp)
                     .size(if (i == current) 8.dp else 6.dp)
                     .background(Color.White.copy(alpha = if (i == current) 0.9f else 0.4f), CircleShape)
             )

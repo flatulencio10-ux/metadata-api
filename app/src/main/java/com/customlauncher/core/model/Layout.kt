@@ -99,7 +99,13 @@ data class Page(
     /** Null = use the activity wallpaper. */
     val wallpaper: Wallpaper? = null,
     val transition: PageTransition = PageTransition.SLIDE,
+    /** The page's nodes (widgets, icons, stickers, objects). */
     val widgets: List<WidgetInstance> = emptyList(),
+    /** Desktop-like page: pan with one finger, pinch to zoom, no page bounds. */
+    val infinite: Boolean = false,
+    /** Optional per-page grid overlay; null = use the global grid settings. */
+    val grid: GridConfig? = null,
+    val name: String = "",
 )
 
 @Serializable

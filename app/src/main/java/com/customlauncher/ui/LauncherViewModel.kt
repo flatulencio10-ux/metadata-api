@@ -91,6 +91,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** Size of the page content area, used to place new widgets and clamp drags. */
     var pageSizeDp by mutableStateOf(DpSize(360.dp, 640.dp))
 
+    private val viewports = HashMap<String, com.customlauncher.ui.home.CanvasViewport>()
+
+    /** Pan/zoom of an infinite canvas page (survives recomposition, not restarts). */
+    fun viewport(pageId: String) = viewports.getOrPut(pageId) { com.customlauncher.ui.home.CanvasViewport() }
+
+    var layersPanelOpen by mutableStateOf(false)
+
     /** Smart guide lines currently shown while dragging in Edit Mode. */
     var guides by mutableStateOf<List<Guide>>(emptyList())
 
@@ -286,6 +293,36 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 pages = act.pages.map { p -> p.copy(widgets = p.widgets.filterNot { it.id == id }) },
             )
         }
+    }
+
+    // ---- Layers panel ---------------------------------------------------------------
+
+    fun renameNode(id: String, name: String) = updateWidget(id) { it.copy(name = name.trim()) }
+    fun toggleHidden(id: String) = updateWidget(id) { it.copy(hidden = !it.hidden) }
+    fun toggleLocked(id: String) = updateWidget(id) { it.copy(locked = !it.locked) }
+
+    /** Moves a node one step up (+1) or down (-1) in its list's stacking order. */
+    fun moveZ(id: String, delta: Int) = editNodeLists { list ->
+        if (list.none { it.id == id }) return@editNodeLists list
+        val ordered = list.sortedBy { it.z }.toMutableList()
+        val i = ordered.indexOfFirst { it.id == id }
+        val j = (i + delta).coerceIn(0, ordered.lastIndex)
+        if (i == j) return@editNodeLists list
+        ordered.add(j, ordered.removeAt(i))
+        // Re-number z densely so later moves stay predictable.
+        val newZ = ordered.mapIndexed { index, n -> n.id to index }.toMap()
+        list.map { it.copy(z = newZ.getValue(it.id)) }
+    }
+
+    /** Groups nodes: they then move together in Edit Mode. */
+    fun group(ids: Set<String>) {
+        val gid = com.customlauncher.core.model.newId()
+        editNodeLists { list -> list.map { if (it.id in ids) it.copy(groupId = gid) else it } }
+    }
+
+    fun ungroup(ids: Set<String>) {
+        val groups = profile.value?.let { p -> ids.mapNotNull { p.findWidget(it)?.groupId }.toSet() }.orEmpty()
+        editNodeLists { list -> list.map { if (it.id in ids || it.groupId in groups) it.copy(groupId = null) else it } }
     }
 
     // ---- Stickers ------------------------------------------------------------------
