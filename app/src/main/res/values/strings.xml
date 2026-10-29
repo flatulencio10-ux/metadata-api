@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Custom Launcher</string>
+    <string name="settings_title">Launcher settings</string>
+    <string name="accessibility_label">Custom Launcher actions</string>
+    <string name="accessibility_description">Lets the launcher lock the screen, open recent apps and the notification shade, and run actions from volume-key long presses. It does not read screen content.</string>
+    <string name="notification_listener_label">Custom Launcher media controls</string>
+    <string name="share_sticker_label">Add to home screen as sticker</string>
+</resources>
