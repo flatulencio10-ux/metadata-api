@@ -46,6 +46,7 @@ import com.customlauncher.ui.home.HomeScreen
 import com.customlauncher.ui.home.LocalRootSize
 import com.customlauncher.ui.onboarding.OnboardingScreen
 import com.customlauncher.ui.search.SearchOverlay
+import com.customlauncher.ui.stickers.StickerEditor
 import com.customlauncher.ui.stickers.StickerSourceSheet
 import com.customlauncher.ui.theme.LauncherTheme
 
@@ -120,6 +121,10 @@ fun LauncherRoot(vm: LauncherViewModel) {
                 vm.fullscreenWidgetId?.let { FullscreenWidget(profile, it, vm) }
                 vm.configuringWidgetId?.let { WidgetConfigDialog(profile, vm, it) }
                 if (vm.stickerSourceSheetOpen) StickerSourceSheet(vm)
+                vm.stickerEditorTarget?.let { id ->
+                    val node = profile.findWidget(id)
+                    if (node == null) vm.stickerEditorTarget = null else StickerEditor(node, vm)
+                }
                 vm.panelAddTargetId?.let { panelId ->
                     AppPickerDialog("Add apps to panel", multi = true, onDismiss = { vm.panelAddTargetId = null }) { keys ->
                         vm.addAppsToPanel(panelId, keys)

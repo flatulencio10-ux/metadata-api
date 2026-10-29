@@ -26,6 +26,7 @@ import com.customlauncher.core.model.NodeLayer
 import com.customlauncher.data.stickers.StickerAsset
 import com.customlauncher.ui.edit.Guide
 import com.customlauncher.ui.edit.NodeToolbarAction
+import com.customlauncher.widgets.sticker.StickerEffects
 import com.customlauncher.widgets.sticker.StickerWidget
 import com.customlauncher.data.apps.AppInfo
 import com.customlauncher.data.apps.AppRepository
@@ -318,6 +319,24 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         editPage(pageIndex) { it.copy(widgets = it.widgets + node) }
         editMode = true
         selectedWidgetId = node.id
+    }
+
+    /**
+     * Saves the sticker editor's result: new pixels (if edited) become a new library asset
+     * and the node keeps its height while adopting the new aspect ratio.
+     */
+    fun saveStickerEdit(nodeId: String, png: ByteArray?, fx: StickerEffects, opacity: Float) = viewModelScope.launch {
+        val asset = png?.let { runCatching { c.stickerRepository.saveEdited(it, null) }.getOrNull() }
+        updateWidget(nodeId) { n ->
+            var config = WidgetConfig(n.config)
+            var width = n.width
+            if (asset != null) {
+                config = config.with(StickerWidget.FILE, asset.file).with(StickerWidget.KIND, asset.kind.name)
+                if (asset.height > 0) width = n.height * asset.width / asset.height
+            }
+            config = StickerWidget.withEffects(config, fx)
+            n.copy(config = config.json, width = width, style = n.style.copy(opacity = opacity))
+        }
     }
 
     // ---- Edit Mode: pages ----------------------------------------------------------

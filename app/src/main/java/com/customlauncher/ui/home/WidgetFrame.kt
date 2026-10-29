@@ -84,7 +84,9 @@ fun WidgetFrame(
     val config = remember(instance.config) { WidgetConfig(instance.config) }
 
     if (def != null && def.chromeless && !fullscreen) {
-        Box(modifier.graphicsLayer { alpha = style.opacity.coerceIn(0f, 1f) }) {
+        // No own layer at full opacity, so blend modes can mix with what is beneath.
+        val faded = if (style.opacity < 0.999f) Modifier.graphicsLayer { alpha = style.opacity.coerceIn(0f, 1f) } else Modifier
+        Box(modifier.then(faded)) {
             CompositionLocalProvider(LocalWidgetHost provides host) {
                 BoxWithConstraints(Modifier.fillMaxSize()) { def.Content(config, DpSize(maxWidth, maxHeight)) }
             }

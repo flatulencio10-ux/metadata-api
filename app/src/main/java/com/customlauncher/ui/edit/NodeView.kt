@@ -35,7 +35,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -56,7 +60,10 @@ import com.customlauncher.core.model.Node
 import com.customlauncher.core.model.NodeLayer
 import com.customlauncher.core.model.Wallpaper
 import com.customlauncher.ui.home.WidgetFrame
+import com.customlauncher.widget.WidgetConfig
 import com.customlauncher.widget.WidgetHost
+import com.customlauncher.widgets.sticker.StickerBlend
+import com.customlauncher.widgets.sticker.StickerWidget
 import com.customlauncher.widget.WidgetRegistry
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -83,6 +90,19 @@ class NodeEditEnv(
     val canvasScale: Float = 1f,
     val pinned: Boolean = false,
 )
+
+/**
+ * Same transform drawn on the parent's canvas instead of an own layer, so a sticker's blend
+ * mode can mix with what is beneath it. Touch hit-testing ignores the rotation here, so it is
+ * only used for stickers with a blend mode.
+ */
+fun Modifier.canvasTransform(n: Node): Modifier = drawWithContent {
+    val pivot = Offset(size.width * n.pivotX, size.height * n.pivotY)
+    withTransform({
+        rotate(n.rotation, pivot)
+        scale(n.scale * if (n.flipX) -1f else 1f, n.scale * if (n.flipY) -1f else 1f, pivot)
+    }) { this@drawWithContent.drawContent() }
+}
 
 /** Applies a node's rotation, scale, flip and pivot. */
 fun Modifier.nodeTransform(n: Node): Modifier = graphicsLayer {
@@ -115,7 +135,7 @@ fun NodeView(
                 .offset(node.x.dp, node.y.dp)
                 .size(node.width.dp, node.height.dp)
                 .then(modifier)
-                .nodeTransform(node)
+                .then(if (usesBlend(node)) Modifier.canvasTransform(node) else Modifier.nodeTransform(node))
         ) { WidgetFrame(node, wallpaper, host, Modifier.fillMaxSize()) }
         return
     }
@@ -267,6 +287,9 @@ fun NodeView(
         NodeToolbar(draft, env)
     }
 }
+
+private fun usesBlend(n: Node): Boolean =
+    n.type == StickerWidget.id && StickerWidget.effects(WidgetConfig(n.config)).blend != StickerBlend.NORMAL
 
 private enum class Corner(val alignment: Alignment, val left: Boolean, val top: Boolean) {
     TOP_LEFT(Alignment.TopStart, true, true),

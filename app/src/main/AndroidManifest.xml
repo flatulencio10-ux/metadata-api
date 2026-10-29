@@ -71,6 +71,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Ask Play services to download the background-removal model at install time. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="subject_segment" />
+
         <!-- Share target: "Add to home screen as sticker" from any app's share sheet. -->
         <activity
             android:name=".ui.stickers.ShareStickerActivity"

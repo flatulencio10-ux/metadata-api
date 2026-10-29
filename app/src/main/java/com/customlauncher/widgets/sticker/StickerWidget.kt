@@ -1,5 +1,6 @@
 package com.customlauncher.widgets.sticker
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
@@ -10,7 +11,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import com.customlauncher.core.json.LauncherJson
+import com.customlauncher.ui.theme.toColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.DpSize
@@ -53,6 +63,8 @@ object StickerWidget : LauncherWidget {
     const val KIND = "kind"
     /** JSON-encoded [Action] run when the sticker is tapped. */
     const val TAP_ACTION = "tapAction"
+    /** JSON-encoded [StickerEffects]. */
+    const val EFFECTS = "effects"
 
     override val configSchema = listOf<ConfigField>(
         ConfigField.Info("info", "Edit the image, effects and animations from the sticker's Edit button in Edit Mode."),
@@ -67,6 +79,14 @@ object StickerWidget : LauncherWidget {
         (config.json[TAP_ACTION] as JsonElement?)?.let {
             runCatching { Json.decodeFromJsonElement(Action.serializer(), it) }.getOrNull()
         } ?: Action.None
+
+    fun effects(config: WidgetConfig): StickerEffects =
+        (config.json[EFFECTS] as JsonElement?)?.let {
+            runCatching { LauncherJson.decodeFromJsonElement(StickerEffects.serializer(), it) }.getOrNull()
+        } ?: StickerEffects()
+
+    fun withEffects(config: WidgetConfig, fx: StickerEffects) =
+        config.put(EFFECTS, LauncherJson.encodeToJsonElement(StickerEffects.serializer(), fx))
 
     @Composable
     override fun Content(config: WidgetConfig, size: DpSize) {
@@ -85,16 +105,49 @@ object StickerWidget : LauncherWidget {
         val tappable = !host.isEditing
 
         Box(Modifier.fillMaxSize().alphaTappable(mask, tappable) { if (action != Action.None) host.runAction(action) }) {
-            StickerImage(file, kind, size, playing = host.isActive, modifier = Modifier.fillMaxSize())
+            StickerImage(file, kind, size, playing = host.isActive, modifier = Modifier.fillMaxSize(), effects = effects(config))
         }
     }
 
     /** Draws just the image, decoded at the displayed size (not full resolution). */
     @Composable
-    fun StickerImage(file: java.io.File, kind: StickerKind, size: DpSize, playing: Boolean, modifier: Modifier = Modifier, iterations: Int = LottieConstants.IterateForever) {
+    fun StickerImage(
+        file: java.io.File,
+        kind: StickerKind,
+        size: DpSize,
+        playing: Boolean,
+        modifier: Modifier = Modifier,
+        iterations: Int = LottieConstants.IterateForever,
+        effects: StickerEffects = StickerEffects(),
+    ) {
         val context = LocalContext.current
         val density = LocalDensity.current
+        val tintFilter = if (effects.tintAmount > 0f) {
+            ColorFilter.tint(effects.tintColor.toColor().copy(alpha = effects.tintAmount.coerceIn(0f, 1f)), BlendMode.SrcAtop)
+        } else null
         when (kind) {
+            StickerKind.BITMAP -> {
+                // Our own pipeline: display-size decode + outline/shadow/glow/tint + blend mode.
+                val w = with(density) { size.width.roundToPx() }
+                val h = with(density) { size.height.roundToPx() }
+                val bitmap by produceState<ImageBitmap?>(null, file.path, file.lastModified(), w, h, effects) {
+                    value = withContext(Dispatchers.IO) { StickerRenderer.render(file, w, h, effects)?.asImageBitmap() }
+                }
+                val image = bitmap ?: return
+                val blend = effects.blend.toCompose()
+                Canvas(modifier) {
+                    val scale = minOf(this.size.width / image.width, this.size.height / image.height)
+                    val dw = (image.width * scale).toInt()
+                    val dh = (image.height * scale).toInt()
+                    drawImage(
+                        image,
+                        dstOffset = IntOffset(((this.size.width - dw) / 2).toInt(), ((this.size.height - dh) / 2).toInt()),
+                        dstSize = IntSize(dw, dh),
+                        blendMode = blend,
+                        filterQuality = FilterQuality.Medium,
+                    )
+                }
+            }
             StickerKind.LOTTIE -> {
                 val composition by rememberLottieComposition(LottieCompositionSpec.File(file.path))
                 LottieAnimation(composition, modifier = modifier, iterations = iterations, isPlaying = playing)
@@ -115,8 +168,18 @@ object StickerWidget : LauncherWidget {
                         }
                         .build()
                 }
-                AsyncImage(model = request, contentDescription = null, contentScale = ContentScale.Fit, modifier = modifier)
+                AsyncImage(model = request, contentDescription = null, contentScale = ContentScale.Fit, modifier = modifier, colorFilter = tintFilter)
             }
         }
+    }
+
+    private fun StickerBlend.toCompose(): BlendMode = when (this) {
+        StickerBlend.NORMAL -> BlendMode.SrcOver
+        StickerBlend.MULTIPLY -> BlendMode.Multiply
+        StickerBlend.SCREEN -> BlendMode.Screen
+        StickerBlend.OVERLAY -> BlendMode.Overlay
+        StickerBlend.DARKEN -> BlendMode.Darken
+        StickerBlend.LIGHTEN -> BlendMode.Lighten
+        StickerBlend.DIFFERENCE -> BlendMode.Difference
     }
 }
