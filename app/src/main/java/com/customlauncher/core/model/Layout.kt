@@ -7,11 +7,16 @@ import java.util.UUID
 
 fun newId(): String = UUID.randomUUID().toString().take(12)
 
-/** Visual chrome around any widget; edited in Edit Mode's inspector. */
+/**
+ * Visual chrome around any widget; edited in Edit Mode's inspector.
+ * While [useCardStyle] is true the background, border, radius and blur come from the global
+ * [CardStyle] in the theme; the fields below are only used once the user customises them.
+ */
 @Serializable
 data class WidgetStyle(
+    val useCardStyle: Boolean = true,
     val opacity: Float = 1f,
-    val cornerRadiusDp: Float = 18f,
+    val cornerRadiusDp: Float = 24f,
     /** ARGB tint drawn behind the widget content. Alpha 0 = no background. */
     val backgroundColor: Long = 0x66000000,
     /** Blur radius applied to the background layer (real blur needs Android 12+). */
@@ -51,9 +56,12 @@ sealed interface Wallpaper {
     @Serializable @SerialName("gradient")
     data class Gradient(val top: Long, val bottom: Long) : Wallpaper
 
-    /** Image copied into app storage (absolute file path). */
+    /**
+     * Image copied into app storage (absolute file path), cropped to fill the screen.
+     * [focusX]/[focusY] (0..1) is the point kept visible when the crop cuts the image.
+     */
     @Serializable @SerialName("image")
-    data class Image(val path: String, val dim: Float = 0f) : Wallpaper
+    data class Image(val path: String, val dim: Float = 0f, val focusX: Float = 0.5f, val focusY: Float = 0.5f) : Wallpaper
 }
 
 @Serializable
@@ -108,7 +116,10 @@ data class Panel(
     /** Whether the page content area is shrunk so widgets never sit under this panel. */
     val reserveSpace: Boolean = true,
     val items: List<PanelItem> = emptyList(),
-)
+) {
+    /** Spacers alone don't count: a panel with nothing else is hidden outside Edit Mode. */
+    val hasContent: Boolean get() = items.any { it !is PanelItem.Spacer }
+}
 
 /** A KDE-style "Activity": a complete, independent home setup. */
 @Serializable

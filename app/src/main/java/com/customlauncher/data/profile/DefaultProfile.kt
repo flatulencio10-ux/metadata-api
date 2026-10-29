@@ -43,7 +43,7 @@ object DefaultProfile {
                     transition = PageTransition.CUBE,
                     widgets = listOf(
                         WidgetInstance(type = "clock", x = 16f, y = 48f, width = 328f, height = 140f,
-                            style = WidgetStyle(backgroundColor = 0x00000000)),
+                            style = WidgetStyle(useCardStyle = false, backgroundColor = 0x00000000)),
                         WidgetInstance(type = "system_stats", x = 16f, y = 204f, width = 160f, height = 160f),
                         WidgetInstance(type = "media", x = 184f, y = 204f, width = 160f, height = 160f),
                         WidgetInstance(type = "agenda", x = 16f, y = 380f, width = 328f, height = 180f),
@@ -54,7 +54,7 @@ object DefaultProfile {
                     widgets = listOf(
                         WidgetInstance(type = "football", x = 16f, y = 48f, width = 328f, height = 220f),
                         WidgetInstance(type = "notes", x = 16f, y = 284f, width = 328f, height = 180f,
-                            style = WidgetStyle(backgroundColor = 0xCCFFF59D)),
+                            style = WidgetStyle(useCardStyle = false, backgroundColor = 0xCCFFF59D)),
                     ),
                 ),
             ),
@@ -70,7 +70,7 @@ object DefaultProfile {
                     widgets = listOf(
                         WidgetInstance(
                             type = "clock", x = 16f, y = 120f, width = 328f, height = 260f,
-                            style = WidgetStyle(backgroundColor = 0x00000000),
+                            style = WidgetStyle(useCardStyle = false, backgroundColor = 0x00000000),
                             config = JsonObject(mapOf("style" to JsonPrimitive("word"))),
                         ),
                     ),

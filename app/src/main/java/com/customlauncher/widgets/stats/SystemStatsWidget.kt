@@ -2,11 +2,13 @@ package com.customlauncher.widgets.stats
 
 import android.text.format.Formatter
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.BatteryFull
@@ -27,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.customlauncher.container
@@ -85,21 +89,33 @@ object SystemStatsWidget : LauncherWidget {
 
     @Composable
     private fun StatRow(icon: ImageVector, label: String, value: String, fraction: Float) {
-        Column(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(icon, null, Modifier.height(16.dp))
-                Text(label, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f), maxLines = 1)
-                Text(value, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            // Narrow widgets stack the label above the value; the value (not the label) ellipsizes.
+            val narrow = maxWidth < 170.dp
+            Column(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(icon, null, Modifier.size(16.dp))
+                    Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, softWrap = false)
+                    if (!narrow) {
+                        Text(
+                            value, style = MaterialTheme.typography.labelSmall, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End, modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                if (narrow) {
+                    Text(value, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                LinearProgressIndicator(
+                    progress = { fraction.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = LocalContentColor.current.copy(alpha = 0.2f),
+                    strokeCap = StrokeCap.Round,
+                )
             }
-            LinearProgressIndicator(
-                progress = { fraction.coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = LocalContentColor.current.copy(alpha = 0.2f),
-                strokeCap = StrokeCap.Round,
-            )
         }
     }
 }

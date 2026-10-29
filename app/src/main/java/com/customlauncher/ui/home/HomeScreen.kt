@@ -17,12 +17,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -31,6 +33,7 @@ import com.customlauncher.core.model.LayoutProfile
 import com.customlauncher.gestures.GestureCallbacks
 import com.customlauncher.gestures.launcherGestures
 import com.customlauncher.ui.LauncherViewModel
+import kotlin.math.abs
 
 /**
  * The home screen of the current activity: wallpaper, paged widgets, edge panels, and the
@@ -54,11 +57,9 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
         snapshotFlow { pagerState.settledPage }.collect { vm.currentPage = it }
     }
 
-    // Space reserved by non-auto-hiding panels on each edge.
-    val reserved: Map<Edge, Dp> = Edge.entries.associateWith { edge ->
-        panels.filter { it.edge == edge && it.reserveSpace && !it.autoHide }
-            .fold(0.dp) { acc, p -> acc + p.footprint() }
-    }
+    // Empty panels (only spacers) are hidden outside Edit Mode and take no space.
+    val visiblePanels = if (vm.editMode) panels else panels.filter { it.hasContent }
+    val reserved = reservedSpace(visiblePanels)
     val overlayOpen = vm.drawerOpen || vm.searchOpen || vm.fullscreenWidgetId != null
 
     Box(
@@ -66,7 +67,23 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
             .fillMaxSize()
             .launcherGestures(profile.gestures, vm.editMode, activity.pages.size == 1, callbacks)
     ) {
+        // Wallpapers fill the whole screen (behind status and navigation bars). Pages with
+        // their own wallpaper cross-fade over the activity wallpaper while swiping.
         WallpaperView(activity.wallpaper)
+        val current = pagerState.currentPage
+        for (i in (current - 1)..(current + 1)) {
+            val own = activity.pages.getOrNull(i)?.wallpaper ?: continue
+            key("wallpaper-${activity.pages[i].id}") {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val distance = (pagerState.currentPage - i) + pagerState.currentPageOffsetFraction
+                            alpha = (1f - abs(distance)).coerceIn(0f, 1f)
+                        }
+                ) { WallpaperView(own) }
+            }
+        }
         Box(
             Modifier
                 .fillMaxSize()
@@ -125,7 +142,7 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
             // Panels, stacked outward-in per edge.
             Edge.entries.forEach { edge ->
                 var offset = 0.dp
-                panels.filter { it.edge == edge }.forEach { panel ->
+                visiblePanels.filter { it.edge == edge }.forEach { panel ->
                     PanelView(
                         panel = panel,
                         wallpaper = activity.wallpaper,
@@ -136,6 +153,8 @@ fun HomeScreen(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerS
                         onAction = vm::run,
                         onOpenWidget = { vm.fullscreenWidgetId = it },
                         onUpdateConfig = { id, config -> vm.updateWidgetConfig(id, config) },
+                        editMode = vm.editMode,
+                        onAddToPanel = { vm.panelAddTargetId = panel.id },
                     )
                     if (!panel.autoHide) offset += panel.footprint()
                 }
@@ -155,4 +174,10 @@ private fun PageIndicator(count: Int, current: Int, modifier: Modifier = Modifie
             )
         }
     }
+}
+
+/** Space reserved on each edge by panels that are shown, not auto-hidden and reserve space. */
+fun reservedSpace(panels: List<com.customlauncher.core.model.Panel>): Map<Edge, Dp> = Edge.entries.associateWith { edge ->
+    panels.filter { it.edge == edge && it.reserveSpace && !it.autoHide }
+        .fold(0.dp) { acc, p -> acc + p.footprint() }
 }

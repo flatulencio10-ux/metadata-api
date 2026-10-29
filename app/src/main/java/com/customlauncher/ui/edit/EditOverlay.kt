@@ -58,6 +58,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.customlauncher.core.model.Action
+import com.customlauncher.core.model.Edge
+import com.customlauncher.ui.home.reservedSpace
+import androidx.compose.ui.zIndex
 import com.customlauncher.core.model.LayoutProfile
 import com.customlauncher.core.model.PageTransition
 import com.customlauncher.core.model.WidgetStyle
@@ -73,12 +76,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun EditOverlay(profile: LayoutProfile, vm: LauncherViewModel, pagerState: PagerState) {
     val scope = rememberCoroutineScope()
+    // Float the toolbar below any top panels so it never sits on top of one.
+    val topPanels = reservedSpace(profile.currentActivity.panels).getValue(Edge.TOP)
     Box(Modifier.fillMaxSize()) {
         Surface(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(8.dp),
+                .padding(top = topPanels + 8.dp, start = 8.dp, end = 8.dp)
+                .zIndex(10f),
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(24.dp),
             tonalElevation = 6.dp,
             shadowElevation = 6.dp,
@@ -173,13 +180,20 @@ private fun WidgetInspector(id: String, type: String, style: WidgetStyle, vm: La
         }
         LabeledSlider("Opacity", style.opacity, 0.05f..1f, { preview(style.copy(opacity = it)) },
             format = { "%.0f%%".format(it * 100) }, onChangeFinished = commit)
-        LabeledSlider("Corner radius", style.cornerRadiusDp, 0f..64f, { preview(style.copy(cornerRadiusDp = it)) },
+        if (!style.useCardStyle) LabeledSlider("Corner radius", style.cornerRadiusDp, 0f..64f, { preview(style.copy(cornerRadiusDp = it)) },
             format = { "${it.toInt()} dp" }, onChangeFinished = commit)
         LabeledSlider("Padding", style.paddingDp, 0f..32f, { preview(style.copy(paddingDp = it)) },
             format = { "${it.toInt()} dp" }, onChangeFinished = commit)
-        LabeledSlider("Background blur", style.blurDp, 0f..40f, { preview(style.copy(blurDp = it)) },
+        if (!style.useCardStyle) LabeledSlider("Background blur", style.blurDp, 0f..40f, { preview(style.copy(blurDp = it)) },
             format = { "${it.toInt()} dp" }, onChangeFinished = commit)
-        ColorRow("Background tint", style.backgroundColor) { vm.updateWidget(id) { w -> w.copy(style = w.style.copy(backgroundColor = it)) } }
+        com.customlauncher.ui.common.SwitchRow(
+            "Use global card style", style.useCardStyle,
+            { on -> vm.updateWidget(id) { w -> w.copy(style = w.style.copy(useCardStyle = on)) } },
+            supporting = "Theme → Card style. Turn off to customise this widget.",
+        )
+        if (!style.useCardStyle) {
+            ColorRow("Background tint", style.backgroundColor) { vm.updateWidget(id) { w -> w.copy(style = w.style.copy(backgroundColor = it)) } }
+        }
     }
 }
 

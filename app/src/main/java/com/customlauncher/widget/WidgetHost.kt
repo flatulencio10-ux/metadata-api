@@ -20,6 +20,8 @@ data class WidgetHost(
     val updateConfig: (WidgetConfig) -> Unit = {},
     /** Opens this instance full screen. */
     val openFullscreen: () -> Unit = {},
+    /** Opens this instance's settings dialog (e.g. a "set up" button in an unconfigured widget). */
+    val openConfig: () -> Unit = {},
     val runAction: (Action) -> Unit = {},
 )
 

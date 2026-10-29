@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,6 +33,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -70,6 +76,8 @@ fun PanelView(
     onOpenWidget: (String) -> Unit,
     onUpdateConfig: (String, WidgetConfig) -> Unit,
     modifier: Modifier = Modifier,
+    editMode: Boolean = false,
+    onAddToPanel: () -> Unit = {},
 ) {
     var revealed by remember { mutableStateOf(!panel.autoHide) }
     var interactionTick by remember { mutableIntStateOf(0) }
@@ -108,6 +116,10 @@ fun PanelView(
         }
         AnimatedVisibility(visible = revealed, enter = fadeIn(), exit = fadeOut()) {
             val size = if (horizontal) Modifier.fillMaxWidth().height(thickness) else Modifier.fillMaxHeight().width(thickness)
+            if (editMode && !panel.hasContent) {
+                EmptyPanelHint(size.padding(margin), panel.cornerRadiusDp.dp, onAddToPanel)
+                return@AnimatedVisibility
+            }
             Box(
                 size
                     .padding(margin)
@@ -185,4 +197,25 @@ private fun PanelWidget(item: PanelItem.Widget, wallpaper: Wallpaper, active: Bo
         )
     }
     WidgetFrame(item.widget, wallpaper, host, Modifier.fillMaxSize().padding(2.dp))
+}
+
+/** Edit Mode placeholder for a panel with no items: dashed outline and an add hint. */
+@Composable
+private fun EmptyPanelHint(modifier: Modifier, radius: Dp, onClick: () -> Unit) {
+    val outline = Color.White.copy(alpha = 0.7f)
+    Box(
+        modifier
+            .drawBehind {
+                drawRoundRect(
+                    color = outline,
+                    cornerRadius = CornerRadius(radius.toPx()),
+                    style = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 10f))),
+                )
+            }
+            .clip(RoundedCornerShape(radius))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("+ add to panel", color = outline, style = MaterialTheme.typography.labelLarge)
+    }
 }

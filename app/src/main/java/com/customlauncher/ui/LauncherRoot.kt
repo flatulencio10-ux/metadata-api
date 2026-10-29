@@ -36,6 +36,7 @@ import com.customlauncher.actions.UiCommand
 import com.customlauncher.container
 import com.customlauncher.gestures.GestureCanvas
 import com.customlauncher.ui.common.AppCatalog
+import com.customlauncher.ui.common.AppPickerDialog
 import com.customlauncher.ui.common.LocalAppCatalog
 import com.customlauncher.ui.drawer.AppDrawer
 import com.customlauncher.ui.edit.EditOverlay
@@ -117,6 +118,12 @@ fun LauncherRoot(vm: LauncherViewModel) {
                 }
                 vm.fullscreenWidgetId?.let { FullscreenWidget(profile, it, vm) }
                 vm.configuringWidgetId?.let { WidgetConfigDialog(profile, vm, it) }
+                vm.panelAddTargetId?.let { panelId ->
+                    AppPickerDialog("Add apps to panel", multi = true, onDismiss = { vm.panelAddTargetId = null }) { keys ->
+                        vm.addAppsToPanel(panelId, keys)
+                        vm.panelAddTargetId = null
+                    }
+                }
 
                 SnackbarHost(
                     snackbar,

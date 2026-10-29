@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -115,6 +116,15 @@ object FootballWidget : LauncherWidget {
         val team = config.string(teamField)
         val compact = size.height < 160.dp
 
+        // Not configured yet: a compact setup card instead of an empty dashboard.
+        val store = LocalContext.current.container.secureStore
+        val keyVersion by store.version.collectAsState()
+        val hasKey = remember(keyVersion) { store.get(SecureStore.FOOTBALL_API_KEY) != null }
+        if (!hasKey && data == null) {
+            SetupCard(onSetup = host.openConfig)
+            return
+        }
+
         Column(
             Modifier
                 .fillMaxSize()
@@ -173,6 +183,28 @@ object FootballWidget : LauncherWidget {
                     }
                 }
             }
+        }
+    }
+
+    @Composable
+    private fun SetupCard(onSetup: () -> Unit) {
+        Column(
+            Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.SportsSoccer, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Football", style = MaterialTheme.typography.titleSmall)
+            }
+            Text(
+                "Needs a free football-data.org key",
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(vertical = 6.dp),
+            )
+            FilledTonalButton(onClick = onSetup) { Text("Add API key") }
         }
     }
 

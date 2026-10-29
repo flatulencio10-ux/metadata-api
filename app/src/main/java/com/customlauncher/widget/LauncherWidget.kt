@@ -22,6 +22,11 @@ interface LauncherWidget {
     val defaultSize: DpSize
     /** Minimum size the resize handles allow. */
     val minSize: DpSize get() = DpSize(48.dp, 48.dp)
+    /**
+     * True for widgets that draw only their own content (stickers): no card background,
+     * border, padding or clipping is added around them.
+     */
+    val chromeless: Boolean get() = false
     /** Settings this widget understands; drives the auto-generated config screen. */
     val configSchema: List<ConfigField>
 

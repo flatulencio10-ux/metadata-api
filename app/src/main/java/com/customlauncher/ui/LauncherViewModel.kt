@@ -75,6 +75,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** Live style preview while an inspector slider is dragged (committed on release). */
     var stylePreview by mutableStateOf<Pair<String, WidgetStyle>?>(null)
 
+    /** Panel that the "+ add to panel" hint (Edit Mode) is adding apps to. */
+    var panelAddTargetId by mutableStateOf<String?>(null)
+
     /** Incremented when Home is pressed while the launcher is already showing. */
     var homePressTick by mutableStateOf(0)
 
@@ -154,7 +157,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             width = w,
             height = h,
             z = (page?.widgets?.maxOfOrNull { it.z } ?: 0) + 1,
-            style = if (type == AppIconWidget.id) WidgetStyle(backgroundColor = 0x00000000, paddingDp = 2f) else WidgetStyle(),
+            style = if (type == AppIconWidget.id) WidgetStyle(useCardStyle = false, backgroundColor = 0x00000000, paddingDp = 2f) else WidgetStyle(),
             config = config.json,
         )
         editPage(pageIndex) { it.copy(widgets = it.widgets + instance) }
@@ -261,6 +264,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         val item = PanelItem.App(component = appKey)
         if (act.panels.isEmpty()) act.copy(panels = listOf(com.customlauncher.core.model.Panel(items = listOf(item))))
         else act.copy(panels = act.panels.mapIndexed { i, p -> if (i == 0) p.copy(items = p.items + item) else p })
+    }
+
+    fun addAppsToPanel(panelId: String, appKeys: List<String>) = updateActivity { act ->
+        act.copy(panels = act.panels.map { p ->
+            if (p.id != panelId) p else p.copy(items = p.items + appKeys.map { PanelItem.App(component = it) })
+        })
     }
 
     /** Copies a picked image into app storage and uses it as the app's icon. */

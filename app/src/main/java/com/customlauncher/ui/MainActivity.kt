@@ -7,6 +7,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.view.WindowCompat
 
 /** The HOME activity. All UI is Compose; state lives in [LauncherViewModel]. */
 class MainActivity : ComponentActivity() {
@@ -19,6 +20,8 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
+        // Draw behind the status and navigation bars so wallpapers fill the entire screen.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent { LauncherRoot(vm) }
     }
 

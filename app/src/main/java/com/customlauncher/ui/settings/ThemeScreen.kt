@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.customlauncher.container
+import com.customlauncher.core.model.CardStyle
 import com.customlauncher.core.model.DarkMode
 import com.customlauncher.core.model.FontChoice
 import com.customlauncher.core.model.IconShape
@@ -86,6 +87,29 @@ fun ThemeScreen(s: SettingsScope) {
         item { ColorRow("Text", theme.colors.text) { c -> set { it.copy(colors = it.colors.copy(text = c)) } } }
         item {
             OutlinedButton(onClick = { set { it.copy(colors = com.customlauncher.core.model.ColorScheme()) } }) { Text("Reset colors (Breeze Dark)") }
+        }
+
+        item { SectionTitle("Widget cards") }
+        item {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                CardStyle.entries.forEach { c -> FilterChip(theme.cardStyle == c, { set { it.copy(cardStyle = c) } }, { Text(c.label) }) }
+            }
+        }
+        item {
+            LabeledSlider("Card corner radius", theme.cardRadiusDp, 0f..40f, { v -> set { it.copy(cardRadiusDp = v) } }, format = { "${it.toInt()} dp" })
+        }
+        item {
+            OutlinedButton(onClick = {
+                s.edit { p ->
+                    p.copy(activities = p.activities.map { a ->
+                        a.copy(pages = a.pages.map { pg ->
+                            pg.copy(widgets = pg.widgets.map { w ->
+                                if (w.type == "app_icon" || w.type == "sticker") w else w.copy(style = w.style.copy(useCardStyle = true))
+                            })
+                        })
+                    })
+                }
+            }) { Text("Apply card style to all widgets") }
         }
 
         item { SectionTitle("Font") }

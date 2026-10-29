@@ -36,7 +36,6 @@ fun PageView(
 ) {
     val wallpaper = page.wallpaper ?: activityWallpaper
     Box(Modifier.fillMaxSize()) {
-        page.wallpaper?.let { WallpaperView(it) }
         if (editMode && grid.showGrid && grid.snapEnabled) GridDots(grid.snapDp)
 
         page.widgets.sortedBy { it.z }.forEach { stored ->
@@ -50,6 +49,7 @@ fun PageView(
                         isEditing = editMode,
                         updateConfig = { vm.updateWidgetConfig(instance.id, it) },
                         openFullscreen = { vm.fullscreenWidgetId = instance.id },
+                        openConfig = { vm.configuringWidgetId = instance.id },
                         runAction = vm::run,
                     )
                 }

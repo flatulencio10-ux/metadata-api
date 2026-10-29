@@ -27,6 +27,12 @@ enum class FontChoice(val label: String) {
     COMFORTAA("Comfortaa"), CUSTOM("Imported font")
 }
 
+/** Global look of widget cards (widgets can opt out individually). */
+@Serializable
+enum class CardStyle(val label: String) {
+    GLASS("Glass"), SOLID("Solid"), OUTLINE("Outline"), NONE("None")
+}
+
 @Serializable
 data class ThemeConfig(
     val dynamicColor: Boolean = false,
@@ -40,4 +46,6 @@ data class ThemeConfig(
     val labelSizeSp: Float = 12f,
     /** Package name of an installed ADW/Nova icon pack, or null for system icons. */
     val iconPack: String? = null,
+    val cardStyle: CardStyle = CardStyle.GLASS,
+    val cardRadiusDp: Float = 24f,
 )
