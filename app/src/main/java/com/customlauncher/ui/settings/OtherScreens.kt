@@ -130,14 +130,25 @@ fun BackupScreen(s: SettingsScope) {
     var confirmReset by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf(s.profile.name) }
 
-    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+    val archive = context.container.profileArchive
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) scope.launch {
-            message = runCatching { repo.exportTo(uri); "Exported" }.getOrElse { "Export failed: ${it.message}" }
+            message = runCatching { archive.export(uri); "Exported layout + stickers + images" }.getOrElse { "Export failed: ${it.message}" }
+        }
+    }
+    val jsonExporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) scope.launch {
+            message = runCatching { repo.exportTo(uri); "Exported layout only" }.getOrElse { "Export failed: ${it.message}" }
         }
     }
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
-            message = runCatching { "Imported \"${repo.importFrom(uri).name}\"" }.getOrElse { it.message ?: "Import failed" }
+            message = runCatching {
+                val p = archive.import(uri)
+                context.container.stickerRepository.rescan()
+                context.container.iconLoader.clear()
+                "Imported \"${p.name}\""
+            }.getOrElse { it.message ?: "Import failed" }
         }
     }
 
@@ -145,8 +156,8 @@ fun BackupScreen(s: SettingsScope) {
         item { SectionTitle("Layout profile") }
         item {
             Text(
-                "A profile holds everything: activities, pages, widgets, panels, theme, gestures and drawer settings. " +
-                    "API keys are never exported. Images (wallpapers, custom icons) stay on this device.",
+                "A profile holds everything: activities, pages, widgets, stickers, panels, theme, gestures and drawer settings. " +
+                    "The .zip also carries sticker files, wallpapers, custom icons and fonts. API keys are never exported.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -155,12 +166,15 @@ fun BackupScreen(s: SettingsScope) {
             TextButton(onClick = { s.edit { it.copy(name = name.trim().ifBlank { "My setup" }) } }) { Text("Save name") }
         }
         item {
-            Button(onClick = {
-                val safe = s.profile.name.replace(Regex("[^A-Za-z0-9_-]+"), "_")
-                exporter.launch("launcher-$safe-${LocalDate.now()}.json")
-            }) { Text("Export to file…") }
+            val safe = s.profile.name.replace(Regex("[^A-Za-z0-9_-]+"), "_")
+            Button(onClick = { exporter.launch("launcher-$safe-${LocalDate.now()}.zip") }) { Text("Export everything (.zip)…") }
+            TextButton(onClick = { jsonExporter.launch("launcher-$safe-${LocalDate.now()}.json") }) { Text("Export layout only (.json)…") }
         }
-        item { OutlinedButton(onClick = { importer.launch(arrayOf("application/json", "text/*", "*/*")) }) { Text("Import from file…") } }
+        item {
+            OutlinedButton(onClick = { importer.launch(arrayOf("application/zip", "application/json", "text/*", "*/*")) }) {
+                Text("Import .zip or .json…")
+            }
+        }
         item { TextButton(onClick = { confirmReset = true }) { Text("Reset to default setup") } }
         message?.let { m -> item { Text(m, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary) } }
     }

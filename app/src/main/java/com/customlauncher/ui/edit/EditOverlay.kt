@@ -201,19 +201,46 @@ private fun WidgetInspector(id: String, type: String, style: WidgetStyle, vm: La
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddWidgetSheet(vm: LauncherViewModel) {
-    ModalBottomSheet(onDismissRequest = { vm.addWidgetSheetOpen = false }) {
-        LazyColumn(Modifier.padding(bottom = 24.dp)) {
-            items(WidgetRegistry.all, key = { it.id }) { widget ->
-                ListItem(
-                    headlineContent = { Text(widget.name) },
-                    supportingContent = { if (widget.description.isNotEmpty()) Text(widget.description) },
-                    leadingContent = { Icon(widget.icon, null) },
-                    modifier = Modifier.clickable {
-                        vm.addWidgetSheetOpen = false
-                        // Stickers need an image first.
-                        if (widget.id == StickerWidget.id) vm.stickerSourceSheetOpen = true else vm.addWidget(widget.id)
-                    },
-                )
+    var tab by remember { mutableStateOf(0) }
+    ModalBottomSheet(onDismissRequest = { vm.addWidgetSheetOpen = false }, containerColor = androidx.compose.ui.graphics.Color(0xFF16181C)) {
+        androidx.compose.material3.TabRow(
+            selectedTabIndex = tab,
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            contentColor = androidx.compose.ui.graphics.Color.White,
+        ) {
+            androidx.compose.material3.Tab(tab == 0, { tab = 0 }, text = { Text("Widgets") })
+            androidx.compose.material3.Tab(tab == 1, { tab = 1 }, text = { Text("My stickers") })
+        }
+        if (tab == 0) {
+            LazyColumn(Modifier.padding(bottom = 24.dp)) {
+                items(WidgetRegistry.all, key = { it.id }) { widget ->
+                    ListItem(
+                        headlineContent = { Text(widget.name) },
+                        supportingContent = { if (widget.description.isNotEmpty()) Text(widget.description) },
+                        leadingContent = { Icon(widget.icon, null) },
+                        colors = androidx.compose.material3.ListItemDefaults.colors(
+                            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            headlineColor = androidx.compose.ui.graphics.Color.White,
+                            supportingColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
+                            leadingIconColor = MaterialTheme.colorScheme.primary,
+                        ),
+                        modifier = Modifier.clickable {
+                            vm.addWidgetSheetOpen = false
+                            // Stickers need an image first.
+                            if (widget.id == StickerWidget.id) vm.stickerSourceSheetOpen = true else vm.addWidget(widget.id)
+                        },
+                    )
+                }
+            }
+        } else {
+            Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
+                com.customlauncher.ui.stickers.StickerLibraryGrid(vm) { asset ->
+                    vm.addWidgetSheetOpen = false
+                    vm.addSticker(asset)
+                }
+                androidx.compose.material3.TextButton(onClick = { vm.addWidgetSheetOpen = false; vm.stickerSourceSheetOpen = true }) {
+                    Text("Import a new sticker…")
+                }
             }
         }
     }

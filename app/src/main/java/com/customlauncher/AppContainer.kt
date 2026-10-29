@@ -9,6 +9,7 @@ import com.customlauncher.data.apps.IconLoader
 import com.customlauncher.data.apps.IconPackManager
 import com.customlauncher.data.apps.ShortcutRepository
 import com.customlauncher.data.db.LauncherDatabase
+import com.customlauncher.data.profile.ProfileArchive
 import com.customlauncher.data.profile.ProfileRepository
 import com.customlauncher.data.settings.LauncherPrefs
 import com.customlauncher.data.settings.SecureStore
@@ -50,6 +51,7 @@ class AppContainer(context: Context) {
     val contactsRepository by lazy { ContactsRepository(app) }
     val mediaRepository by lazy { MediaRepository(app) }
     val stickerRepository by lazy { StickerRepository(app, appScope) }
+    val profileArchive by lazy { ProfileArchive(app, profileRepository) }
     val powerGovernor by lazy { PowerGovernor(app, profileRepository, appScope) }
     val tiltSensor by lazy { TiltSensor(app, appScope) }
     val animationSignals = AnimationSignals()

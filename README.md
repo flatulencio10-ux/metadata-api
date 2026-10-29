@@ -40,6 +40,61 @@ Calendar agenda (CalendarContract) · Sticky note (type directly on the home scr
 Media controller (MediaSession via notification access) · App folder grid · Single app icon ·
 **Football** dashboard (football-data.org).
 
+## Stickers
+
+Stickers are free-form images on the home screen: no card, border or clipping. Transparent
+pixels stay transparent, and a tap on a transparent pixel goes through to whatever is underneath.
+
+**Adding a sticker**
+
+- Edit Mode → **Widget** → **Sticker**, then choose **Gallery**, **Files** or **Paste** (an image you copied).
+- From any app's share sheet (Chrome, Gallery…): **Add to home screen as sticker**.
+- Edit Mode → **Widget** → **My stickers** reuses anything you imported before. Long-press a sticker
+  there to favourite, rename or delete it.
+
+Supported formats: PNG/WebP with transparency, JPG, animated GIF, animated WebP, APNG (animates
+where Android's decoder supports it), SVG and Lottie `.json`. Files are copied into the app's storage,
+so deleting the original doesn't break the sticker.
+
+**Moving and arranging** (Edit Mode)
+
+- One finger moves, two fingers pinch to scale and twist to rotate. The corner handles scale; the
+  round handle above rotates, snapping to 15° steps with a haptic tick.
+- Stickers always place freely, even when the grid is on. Pink guide lines appear at the page
+  centre, page edges and other widgets' edges.
+- The floating toolbar does flip horizontally/vertically, duplicate, bring to front / send to back,
+  layer (**above** or **below** the panels, e.g. a cloud behind the dock), **pin across all pages**,
+  lock, edit and delete.
+
+**Removing backgrounds and cutting out** (toolbar → Edit)
+
+- **Cut → Remove BG**: on-device subject segmentation with ML Kit (Google Play services downloads the
+  model the first time). Hold **Hold: before/after** to compare with the original.
+- **Lasso**: draw around the part to keep. **Eraser** / **Restore**: brush away or paint back pixels,
+  with a size slider. Undo/redo at the top.
+- **Shape**: crop to a circle, rounded rectangle, star, heart or blob.
+- **Effects**: outline (sticker border), drop shadow, glow, tint, opacity and blend mode. Outline,
+  shadow and glow apply to still images. Blend modes mix with widgets on the same page, not with the
+  system wallpaper.
+
+**Animations** (Edit → Animate; any slot can stay off)
+
+- **Entrance**: fade, fly in from any edge, zoom, pop, spin, bounce drop, wipe, slide + fade,
+  typewriter reveal. It plays when the page is shown, when you unlock, or when the launcher opens.
+- **Idle loop**: float/bob, wiggle, pulse, rotate, sway (choose the pivot), shake, breathe, or drift
+  along a path you draw with your finger.
+- **On tap**: jump, spin, squash & stretch, shake, explode into its own pixels and re-form, or play
+  a GIF once. A tap can also run any action (open an app, a macro…).
+- Each slot has duration, delay, easing (linear, ease, spring, bounce, overshoot) and repeat. Use
+  **Preview** to try it.
+- **Parallax**: depth makes the sticker drift slightly while swiping pages; **Follow device tilt**
+  adds a gyroscope effect.
+- Idle loops stop off screen, with the screen off, and in battery saver or below 15% battery
+  (Settings → Performance can override this).
+
+**Sharing**: Settings → Backup & profiles → **Export everything (.zip)** writes `layout.json` plus
+`stickers/`, wallpapers, custom icons and fonts. Import accepts the `.zip` or a plain `.json`.
+
 ## Permissions & first run
 
 The first-run screen deep-links to each step; all are optional:

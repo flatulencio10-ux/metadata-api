@@ -83,6 +83,8 @@ class ProfileRepository(private val context: Context, private val appScope: Coro
         store.updateData { imported }
     }
 
+    suspend fun replace(profile: LayoutProfile): LayoutProfile = store.updateData { ProfileCodec.normalize(profile) }
+
     suspend fun resetToDefault() {
         store.updateData { DefaultProfile.create(context) }
     }
