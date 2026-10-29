@@ -27,9 +27,9 @@ fun BehaviorHost(
 ) {
     val c = LocalContext.current.container
     // Restart only when behaviours change, not when positions do (running actions survive).
-    val key = nodes.map { it.id to it.logic }
-    LaunchedEffect(key, physics, active) {
-        if (!active || (nodes.none { it.logic != null } && extensions.isEmpty())) return@LaunchedEffect
+    val key = nodes.map { Triple(it.id, it.logic, it.script) }
+    LaunchedEffect(key, physics, active, vm.scriptGeneration) {
+        if (!active || nodes.none { it.logic != null || !it.script.isNullOrBlank() }) return@LaunchedEffect
         val hooks = ArrayList<(ObjectEvent) -> Unit>()
         val session = BehaviorSession(
             c, this, nodes, physics,

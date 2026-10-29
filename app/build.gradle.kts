@@ -71,6 +71,7 @@ dependencies {
     implementation(libs.lottie.compose)
     implementation(libs.mlkit.subject.segmentation)
     implementation(libs.jbox2d)
+    implementation(libs.rhino)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)

@@ -316,10 +316,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var objectEventListener: ((com.customlauncher.objects.ObjectEvent) -> Unit)? = null
 
     /** Extensions (scripting) attached to each page's behaviour session. */
-    val sessionExtensions = mutableListOf<com.customlauncher.objects.SessionExtension>()
+    val sessionExtensions = listOf<com.customlauncher.objects.SessionExtension>(com.customlauncher.scripting.ScriptExtension(c))
 
-    /** True when a node has a script (set up by the scripting phase). */
-    fun isScripted(n: Node): Boolean = false
+    /** Bumped on "Save & reload" so page sessions restart even if the text is unchanged. */
+    var scriptGeneration by androidx.compose.runtime.mutableIntStateOf(0)
+
+    /** Scripted nodes take touches in the object layer so their hooks fire. */
+    fun isScripted(n: Node): Boolean = !n.script.isNullOrBlank()
 
     fun pinnedNodes(): List<Node> = profile.value?.currentActivity?.pinned.orEmpty()
 

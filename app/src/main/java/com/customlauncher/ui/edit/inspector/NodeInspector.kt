@@ -332,5 +332,5 @@ internal fun BehaviorsTab(n: Node, profile: LayoutProfile, vm: LauncherViewModel
 
 @Composable
 internal fun ScriptTab(n: Node, vm: LauncherViewModel) {
-    Hint("Scripts: JavaScript hooks for this object.")
+    com.customlauncher.ui.scripting.ScriptEditor(n, vm)
 }

@@ -73,6 +73,8 @@ data class WidgetInstance(
     val clips: List<KeyframeClip> = emptyList(),
     /** Speed-reactive visuals (motion blur, zoetrope, trails…) for physics objects. */
     val speedVisuals: SpeedVisuals? = null,
+    /** JavaScript with hook functions (onTap, onSpin…); null = no script. */
+    val script: String? = null,
 )
 
 /** Kept for readability in new code: every placed element is a node. */

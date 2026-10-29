@@ -161,7 +161,7 @@ fun NodeView(
             usesBlend(node) -> Modifier.canvasTransform(node)
             else -> Modifier.nodeTransform(node)
         }
-        val rt = if (node.logic != null || node.clips.isNotEmpty() || node.speedVisuals?.sparksOnCollision == true) LocalRuntimes.current?.get(node.id) else null
+        val rt = if (node.logic != null || node.script != null || node.clips.isNotEmpty() || node.speedVisuals?.sparksOnCollision == true) LocalRuntimes.current?.get(node.id) else null
         val clipPose = com.customlauncher.ui.anim.rememberClipPlayback(node, rt)
         val visuals = node.speedVisuals
         val frames = if (visuals?.frames != null) rememberSpriteSheet(visuals.frames) else null

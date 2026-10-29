@@ -35,7 +35,7 @@ import kotlinx.coroutines.SupervisorJob
  * Everything is lazy so cold start only pays for what the first frame needs.
  */
 class AppContainer(context: Context) {
-    private val app = context.applicationContext
+    val app: android.content.Context = context.applicationContext
 
     /** Lives as long as the process; used for writes that must not be cancelled by UI. */
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -62,6 +62,7 @@ class AppContainer(context: Context) {
     val triggerSources by lazy { TriggerSources(app, appScope) }
     val soundAndHaptics by lazy { SoundAndHaptics(app) }
     val runtimes = RuntimeRegistry()
+    val scriptConsole = com.customlauncher.scripting.ScriptConsole()
     val variables by lazy { VariablePersistence.load(app, appScope) }
     val autoSwitcher by lazy { ActivityAutoSwitcher(app, profileRepository, systemStats, appScope) }
     val actionExecutor by lazy {

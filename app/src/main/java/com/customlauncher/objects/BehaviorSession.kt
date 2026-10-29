@@ -34,7 +34,8 @@ import kotlin.random.Random
  */
 class BehaviorSession(
     private val c: AppContainer,
-    private val scope: CoroutineScope,
+    /** Lives as long as the session; scripts launch their work here. */
+    val scope: CoroutineScope,
     nodes: List<Node>,
     private val physics: PhysicsWorld?,
     /** Lets scripts and other hooks observe events. */
